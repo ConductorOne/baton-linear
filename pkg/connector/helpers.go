@@ -14,7 +14,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// resourcePageSize defines a default page size for pagination
+// resourcePageSize defines a default page size for pagination.
 const resourcePageSize = 50
 
 var titleCaser = cases.Title(language.English)
