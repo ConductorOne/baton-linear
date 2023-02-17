@@ -1,12 +1,13 @@
-`baton-linear` is a connector for Linear built using the [Baton SDK](https://github.com/conductorone/baton-sdk). It communicates with the Linear API to sync data about organization, users, teams and projects.
+`baton-linear` is a connector for Linear built using the [Baton SDK](https://github.com/conductorone/baton-sdk). It communicates with the Linear API to sync data about organization, users, teams, and projects.
 
 Check out [Baton](https://github.com/conductorone/baton) to learn more the project in general.
 
 # Getting Started
 
 ## Prerequisites
+
 Linear API key of a user with Admin rights. 
-API key can be created in Settings -> Account -> API -> Personal API keys
+The API key can be created in Settings -> Account -> API -> Personal API keys. 
 
 ## brew
 
@@ -35,13 +36,13 @@ baton resources
 
 # Data Model
 
-`baton-linear` will pull down information about the following Linear resources:
+`baton-linear` pulls down information about the following Linear resources:
 - Organization
 - Users
 - Projects
 - Teams
 
-# Contributing, Support and Issues
+# Contributing, Support, and Issues
 
 We started Baton because we were tired of taking screenshots and manually building spreadsheets. We welcome contributions, and ideas, no matter how small -- our goal is to make identity and permissions sprawl less painful for everyone. If you have questions, problems, or ideas: Please open a Github Issue!
 
