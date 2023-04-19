@@ -34,6 +34,11 @@ var (
 		Id:          "org",
 		DisplayName: "Org",
 	}
+	resourceTypeRole = &v2.ResourceType{
+		Id:          "role",
+		DisplayName: "Role",
+		Traits:      []v2.ResourceType_Trait{v2.ResourceType_TRAIT_ROLE},
+	}
 )
 
 type Linear struct {
@@ -46,6 +51,7 @@ func (ln *Linear) ResourceSyncers(ctx context.Context) []connectorbuilder.Resour
 		teamBuilder(ln.client),
 		projectBuilder(ln.client),
 		orgBuilder(ln.client),
+		roleBuilder(ln.client),
 	}
 }
 
