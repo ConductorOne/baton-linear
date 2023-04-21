@@ -14,18 +14,6 @@ import (
 	resource "github.com/conductorone/baton-sdk/pkg/types/resource"
 )
 
-const (
-	roleGuest = "guest"
-	roleUser  = "user"
-	roleAdmin = "admin"
-)
-
-var roles = []string{
-	roleGuest,
-	roleUser,
-	roleAdmin,
-}
-
 type orgResourceType struct {
 	resourceType *v2.ResourceType
 	client       *linear.Client
@@ -40,7 +28,8 @@ func orgResource(org *linear.Organization, parentResourceID *v2.ResourceId) (*v2
 	orgOptions := []resource.ResourceOption{
 		resource.WithAnnotation(
 			&v2.ChildResourceType{ResourceTypeId: resourceTypeUser.Id},
-			&v2.ChildResourceType{ResourceTypeId: resourceTypeTeam.Id}),
+			&v2.ChildResourceType{ResourceTypeId: resourceTypeTeam.Id},
+			&v2.ChildResourceType{ResourceTypeId: resourceTypeRole.Id}),
 		resource.WithParentResourceID(parentResourceID)}
 
 	orgResource, err := resource.NewResource(
@@ -104,17 +93,6 @@ func (o *orgResourceType) List(ctx context.Context, parentId *v2.ResourceId, tok
 
 func (o *orgResourceType) Entitlements(_ context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
 	var rv []*v2.Entitlement
-	for _, role := range roles {
-		permissionOptions := []ent.EntitlementOption{
-			ent.WithGrantableTo(resourceTypeUser),
-			ent.WithDescription(fmt.Sprintf("Role in %s Linear org", resource.DisplayName)),
-			ent.WithDisplayName(fmt.Sprintf("%s Org %s", resource.DisplayName, titleCaser.String(role))),
-		}
-
-		permissionEn := ent.NewPermissionEntitlement(resource, role, permissionOptions...)
-		rv = append(rv, permissionEn)
-	}
-
 	assignmentOptions := []ent.EntitlementOption{
 		ent.WithGrantableTo(resourceTypeTeam, resourceTypeUser),
 		ent.WithDescription(fmt.Sprintf("Member of %s Linear org", resource.DisplayName)),
@@ -159,24 +137,13 @@ func (o *orgResourceType) Grants(ctx context.Context, resource *v2.Resource, tok
 	}
 
 	for _, user := range org.Users.Nodes {
-		var roleName string
-		switch {
-		case user.Admin:
-			roleName = roleAdmin
-		case user.Guest:
-			roleName = roleGuest
-		default:
-			roleName = roleUser
-		}
 		userCopy := user
 		ur, err := userResource(ctx, &userCopy, resource.Id)
 		if err != nil {
 			return nil, "", nil, err
 		}
 
-		permissionGrant := grant.NewGrant(resource, roleName, ur.Id)
 		membershipGrant := grant.NewGrant(resource, membership, ur.Id)
-		rv = append(rv, permissionGrant)
 		rv = append(rv, membershipGrant)
 	}
 
