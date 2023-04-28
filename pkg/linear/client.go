@@ -315,8 +315,8 @@ func (c *Client) GetOrganization(ctx context.Context, paginationVars PaginationV
 			}
 		}`
 	b, _ := json.Marshal(map[string]interface{}{
-		"query":    query,
-		"variabes": string(vars),
+		"query":     query,
+		"variables": string(vars),
 	})
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, APIEndpoint, bytes.NewReader(b))
