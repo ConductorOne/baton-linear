@@ -59,6 +59,7 @@ func (ln *Linear) ResourceSyncers(ctx context.Context) []connectorbuilder.Resour
 func (ln *Linear) Metadata(ctx context.Context) (*v2.ConnectorMetadata, error) {
 	return &v2.ConnectorMetadata{
 		DisplayName: "Linear",
+		Description: "Connector sycing orgs, projects, teams, users and roles from Linear to Baton.",
 	}, nil
 }
 
