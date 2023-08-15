@@ -96,7 +96,7 @@ func (o *orgResourceType) Entitlements(_ context.Context, resource *v2.Resource,
 	assignmentOptions := []ent.EntitlementOption{
 		ent.WithGrantableTo(resourceTypeTeam, resourceTypeUser),
 		ent.WithDescription(fmt.Sprintf("Member of %s Linear org", resource.DisplayName)),
-		ent.WithDisplayName(fmt.Sprintf("%s Org %s", resource.DisplayName, titleCaser.String(membership))),
+		ent.WithDisplayName(fmt.Sprintf("%s Org %s", resource.DisplayName, titleCase(membership))),
 	}
 
 	assignmentEn := ent.NewAssignmentEntitlement(resource, membership, assignmentOptions...)

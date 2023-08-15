@@ -36,7 +36,7 @@ var roles = []string{
 
 // Create a new connector resource for a Linear role.
 func roleResource(ctx context.Context, role string, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
-	roleDisplayName := titleCaser.String(role)
+	roleDisplayName := titleCase(role)
 	profile := map[string]interface{}{
 		"role_name": roleDisplayName,
 		"role_id":   role,
@@ -83,7 +83,7 @@ func (o *roleResourceType) Entitlements(_ context.Context, resource *v2.Resource
 	assignmentOptions := []ent.EntitlementOption{
 		ent.WithGrantableTo(resourceTypeUser),
 		ent.WithDescription(fmt.Sprintf("%s Linear role", resource.DisplayName)),
-		ent.WithDisplayName(fmt.Sprintf("%s Role %s", resource.DisplayName, titleCaser.String(membership))),
+		ent.WithDisplayName(fmt.Sprintf("%s Role %s", resource.DisplayName, titleCase(membership))),
 	}
 
 	assignmentEn := ent.NewAssignmentEntitlement(resource, membership, assignmentOptions...)
