@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 )
 
@@ -69,6 +70,10 @@ type GraphQLViewerResponse struct {
 	} `json:"data"`
 }
 
+type SuccessResponse struct {
+	Success bool `json:"success"`
+}
+
 type GetTeamVars struct {
 	TeamId string `json:"teamId"`
 	After  string `json:"after,omitempty"`
@@ -124,26 +129,9 @@ func (c *Client) GetUsers(ctx context.Context, getResourceVars GetResourcesVars)
 		"variables": string(vars),
 	})
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, APIEndpoint, bytes.NewReader(b))
-	if err != nil {
-		return nil, "", nil, err
-	}
-
-	req.Header.Add("Authorization", c.apiKey)
-	req.Header.Add("Content-Type", "application/json")
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, "", nil, err
-	}
-	defer resp.Body.Close()
-
 	var res GraphQLUsersResponse
-	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		// failed to parse successful response, try decoding GQL error
-		var gqlErr GraphQLError
-		if err := json.NewDecoder(resp.Body).Decode(&gqlErr); err == nil {
-			return nil, "", nil, errors.New(gqlErr.Errors[0].Message)
-		}
+	resp, err := c.doRequest(ctx, b, &res)
+	if err != nil {
 		return nil, "", nil, err
 	}
 
@@ -181,26 +169,9 @@ func (c *Client) GetTeams(ctx context.Context, getResourceVars GetResourcesVars)
 		"variables": string(varsB),
 	})
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, APIEndpoint, bytes.NewReader(b))
-	if err != nil {
-		return nil, "", nil, err
-	}
-
-	req.Header.Add("Authorization", c.apiKey)
-	req.Header.Add("Content-Type", "application/json")
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, "", nil, err
-	}
-	defer resp.Body.Close()
-
 	var res GraphQLTeamsResponse
-	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		// failed to parse successful response, try decoding GQL error
-		var gqlErr GraphQLError
-		if err := json.NewDecoder(resp.Body).Decode(&gqlErr); err == nil {
-			return nil, "", nil, errors.New(gqlErr.Errors[0].Message)
-		}
+	resp, err := c.doRequest(ctx, b, &res)
+	if err != nil {
 		return nil, "", nil, err
 	}
 
@@ -239,27 +210,9 @@ func (c *Client) GetProjects(ctx context.Context, getResourceVars GetResourcesVa
 		"variables": string(vars),
 	})
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, APIEndpoint, bytes.NewReader(b))
-	if err != nil {
-		return nil, "", nil, err
-	}
-
-	req.Header.Add("Authorization", c.apiKey)
-	req.Header.Add("Content-Type", "application/json")
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, "", nil, err
-	}
-	defer resp.Body.Close()
-
 	var res GraphQLProjectsResponse
-	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		// failed to parse successful response, try decoding GQL error
-		var gqlErr GraphQLError
-		if err := json.NewDecoder(resp.Body).Decode(&gqlErr); err == nil {
-			return nil, "", nil, errors.New(gqlErr.Errors[0].Message)
-		}
-
+	resp, err := c.doRequest(ctx, b, &res)
+	if err != nil {
 		return nil, "", nil, err
 	}
 
@@ -319,29 +272,9 @@ func (c *Client) GetOrganization(ctx context.Context, paginationVars PaginationV
 		"variables": string(vars),
 	})
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, APIEndpoint, bytes.NewReader(b))
-	if err != nil {
-		return Organization{}, Tokens{}, nil, err
-	}
-
-	req.Header.Add("Authorization", c.apiKey)
-	req.Header.Add("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return Organization{}, Tokens{}, nil, err
-	}
-
-	defer resp.Body.Close()
-
 	var res GraphQLOrganizationResponse
-	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		// failed to parse successful response, try decoding GQL error
-		var gqlErr GraphQLError
-		if err := json.NewDecoder(resp.Body).Decode(&gqlErr); err == nil {
-			return Organization{}, Tokens{}, nil, errors.New(gqlErr.Errors[0].Message)
-		}
-
+	resp, err := c.doRequest(ctx, b, &res)
+	if err != nil {
 		return Organization{}, Tokens{}, nil, err
 	}
 
@@ -377,10 +310,15 @@ func (c *Client) GetTeam(ctx context.Context, getTeamVars GetTeamVars) (Team, st
 				name
 				key
 				description
-				members(after: $after, first: $first) {
+				memberships(after: $after, first: $first) {
 					nodes {
 						id
-						name
+						user {
+							id
+						}
+						team {
+							id
+						}
 					}
 					pageInfo {
 						hasPreviousPage
@@ -396,32 +334,14 @@ func (c *Client) GetTeam(ctx context.Context, getTeamVars GetTeamVars) (Team, st
 		"variables": string(jsonString),
 	})
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, APIEndpoint, bytes.NewReader(b))
-	if err != nil {
-		return Team{}, "", nil, err
-	}
-
-	req.Header.Add("Authorization", c.apiKey)
-	req.Header.Add("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return Team{}, "", nil, err
-	}
-	defer resp.Body.Close()
-
 	var res GraphQLTeamResponse
-	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		// failed to parse successful response, try decoding GQL error
-		var gqlErr GraphQLError
-		if err := json.NewDecoder(resp.Body).Decode(&gqlErr); err == nil {
-			return Team{}, "", nil, errors.New(gqlErr.Errors[0].Message)
-		}
+	resp, err := c.doRequest(ctx, b, &res)
+	if err != nil {
 		return Team{}, "", nil, err
 	}
 
-	if res.Data.Team.Members.PageInfo.HasNextPage {
-		return res.Data.Team, res.Data.Team.Members.PageInfo.EndCursor, resp, nil
+	if res.Data.Team.Memberships.PageInfo.HasNextPage {
+		return res.Data.Team, res.Data.Team.Memberships.PageInfo.EndCursor, resp, nil
 	}
 
 	return res.Data.Team, "", resp, nil
@@ -472,27 +392,9 @@ func (c *Client) GetProject(ctx context.Context, getProjectVars GetProjectVars) 
 		"variables": string(vars),
 	})
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, APIEndpoint, bytes.NewReader(b))
-	if err != nil {
-		return Project{}, Tokens{}, nil, err
-	}
-
-	req.Header.Add("Authorization", c.apiKey)
-	req.Header.Add("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return Project{}, Tokens{}, nil, err
-	}
-	defer resp.Body.Close()
-
 	var res GraphQLProjectResponse
-	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		// failed to parse successful response, try decoding GQL error
-		var gqlErr GraphQLError
-		if err := json.NewDecoder(resp.Body).Decode(&gqlErr); err == nil {
-			return Project{}, Tokens{}, nil, errors.New(gqlErr.Errors[0].Message)
-		}
+	resp, err := c.doRequest(ctx, b, &res)
+	if err != nil {
 		return Project{}, Tokens{}, nil, err
 	}
 
@@ -522,29 +424,164 @@ func (c *Client) Authorize(ctx context.Context) (ViewerPermissions, *http.Respon
 		"query": query,
 	})
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, APIEndpoint, bytes.NewReader(b))
-	if err != nil {
-		return ViewerPermissions{}, nil, err
-	}
-
-	req.Header.Add("Authorization", c.apiKey)
-	req.Header.Add("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return ViewerPermissions{}, nil, err
-	}
-	defer resp.Body.Close()
-
 	var res GraphQLViewerResponse
-	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		// failed to parse successful response, try decoding GQL error
-		var gqlErr GraphQLError
-		if err := json.NewDecoder(resp.Body).Decode(&gqlErr); err == nil {
-			return ViewerPermissions{}, nil, errors.New(gqlErr.Errors[0].Message)
-		}
+	resp, err := c.doRequest(ctx, b, &res)
+	if err != nil {
 		return ViewerPermissions{}, nil, err
 	}
 
 	return res.Data.Viewer, resp, nil
+}
+
+func (c *Client) AddMemberToTeam(ctx context.Context, teamId, userId string) (string, error) {
+	mutation := `mutation TeamMembershipCreate($input: TeamMembershipCreateInput!){
+			teamMembershipCreate(input: $input) {
+				success
+				teamMembership {
+					id
+				}
+			}
+		}`
+
+	vars, err := json.Marshal(map[string]interface{}{
+		"input": map[string]interface{}{
+			"teamId": teamId,
+			"userId": userId,
+		},
+	})
+
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal vars: %w", err)
+	}
+
+	b, _ := json.Marshal(map[string]interface{}{
+		"query":     mutation,
+		"variables": string(vars),
+	},
+	)
+
+	var res struct {
+		TeamMembership struct {
+			ID string `json:"id"`
+		} `json:"teamMembership"`
+	}
+	resp, e := c.doRequest(ctx, b, &res)
+	if e != nil {
+		return "", e
+	}
+
+	defer resp.Body.Close()
+
+	return res.TeamMembership.ID, nil
+}
+
+func (c *Client) RemoveTeamMembership(ctx context.Context, teamMembershipId string) (bool, error) {
+	mutation := `mutation TeamMembershipDelete($teamMembershipDeleteId: String!){
+			teamMembershipDelete(id: $teamMembershipDeleteId) {
+				success
+			}
+		}`
+
+	vars, err := json.Marshal(map[string]interface{}{
+		"teamMembershipDeleteId": teamMembershipId,
+	})
+
+	if err != nil {
+		return false, err
+	}
+
+	b, _ := json.Marshal(map[string]interface{}{
+		"query":     mutation,
+		"variables": string(vars),
+	})
+
+	var res struct {
+		Data struct {
+			TeamMembershipDelete SuccessResponse `json:"teamMembershipDelete"`
+		} `json:"data"`
+	}
+	resp, err := c.doRequest(ctx, b, &res)
+	if err != nil {
+		return false, err
+	}
+
+	defer resp.Body.Close()
+
+	return res.Data.TeamMembershipDelete.Success, nil
+}
+
+// GetTeamMemberships returns team memberships from Linear organization.
+func (c *Client) GetTeamMemberships(ctx context.Context, getTeamVars GetTeamVars) ([]TeamMembership, string, *http.Response, error) {
+	vars := GetTeamVars{TeamId: getTeamVars.TeamId, First: getTeamVars.First, After: ""}
+
+	if getTeamVars.After != "" {
+		vars.After = getTeamVars.After
+	}
+
+	jsonString, err := json.Marshal(vars)
+	if err != nil {
+		return nil, "", nil, err
+	}
+
+	query := `query TeamMemberships($teamId: String!, $after: String, $first: Int) {
+			teamMemberships(id: $teamId) {
+				id
+				memberships(after: $after, first: $first) {
+					nodes {
+						id
+						team {
+							id
+							name
+						}
+						user {
+							id
+							name
+						}
+					}
+					pageInfo {
+						hasPreviousPage
+						hasNextPage
+						startCursor
+						endCursor
+					}
+				}
+			}
+		}`
+	b, _ := json.Marshal(map[string]interface{}{
+		"query":     query,
+		"variables": string(jsonString),
+	})
+
+	var res GraphQLTeamResponse
+	resp, err := c.doRequest(ctx, b, &res)
+	if err != nil {
+		return nil, "", nil, err
+	}
+
+	return res.Data.Team.Memberships.Nodes, "", resp, nil
+}
+
+func (c *Client) doRequest(ctx context.Context, body []byte, res interface{}) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, APIEndpoint, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Authorization", c.apiKey)
+	req.Header.Add("Content-Type", "application/json")
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		// failed to parse successful response, try decoding GQL error
+		var gqlErr GraphQLError
+		if err := json.NewDecoder(resp.Body).Decode(&gqlErr); err == nil {
+			return nil, errors.New(gqlErr.Errors[0].Message)
+		}
+		return nil, err
+	}
+	return resp, nil
 }

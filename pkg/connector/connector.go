@@ -19,6 +19,7 @@ var (
 		Traits: []v2.ResourceType_Trait{
 			v2.ResourceType_TRAIT_USER,
 		},
+		Annotations: annotationsForUserResourceType(),
 	}
 	resourceTypeTeam = &v2.ResourceType{
 		Id:          "team",
@@ -63,17 +64,13 @@ func (ln *Linear) Metadata(ctx context.Context) (*v2.ConnectorMetadata, error) {
 	}, nil
 }
 
-// Validate hits the Linear API to validate that the API key passed has admin rights.
+// Validate hits the Linear API to assure that the API key is valid.
 func (ln *Linear) Validate(ctx context.Context) (annotations.Annotations, error) {
-	currentUser, resp, err := ln.client.Authorize(ctx)
+	_, resp, err := ln.client.Authorize(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("linear-connector: failed to authenticate. Error: %w", err)
 	}
 	resp.Body.Close()
-
-	if !currentUser.Admin {
-		return nil, fmt.Errorf("linear-connector: authenticated user is not an admin")
-	}
 
 	return nil, nil
 }

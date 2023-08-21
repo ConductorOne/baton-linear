@@ -11,6 +11,9 @@ import (
 	ent "github.com/conductorone/baton-sdk/pkg/types/entitlement"
 	grant "github.com/conductorone/baton-sdk/pkg/types/grant"
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
+	"go.uber.org/zap"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 const memberEntitlement = "member"
@@ -112,17 +115,7 @@ func (o *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, to
 		return nil, "", nil, err
 	}
 
-	teamTrait, err := rs.GetGroupTrait(resource)
-	if err != nil {
-		return nil, "", nil, err
-	}
-
-	teamId, ok := rs.GetProfileStringValue(teamTrait.Profile, "team_id")
-	if !ok {
-		return nil, "", nil, fmt.Errorf("error fetching team_id from team profile")
-	}
-
-	team, nextToken, resp, err := o.client.GetTeam(ctx, linear.GetTeamVars{TeamId: teamId, After: bag.PageToken(), First: resourcePageSize})
+	team, nextToken, resp, err := o.client.GetTeam(ctx, linear.GetTeamVars{TeamId: resource.Id.Resource, After: bag.PageToken(), First: resourcePageSize})
 	if err != nil {
 		return nil, "", nil, err
 	}
@@ -140,18 +133,80 @@ func (o *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, to
 
 	annotations.WithRateLimiting(restApiRateLimit)
 
-	for _, member := range team.Members.Nodes {
-		memberCopy := member
-		ur, err := userResource(ctx, &memberCopy, resource.Id)
+	for _, membership := range team.Memberships.Nodes {
+		membershipCopy := membership
+		ur, err := userResource(ctx, &membershipCopy.User, resource.Id)
 		if err != nil {
 			return nil, "", nil, err
 		}
 
-		grant := grant.NewGrant(resource, memberEntitlement, ur.Id)
+		metadata := map[string]interface{}{
+			"membership_id": membership.ID,
+		}
+
+		grant := grant.NewGrant(resource, memberEntitlement, ur.Id, grant.WithGrantMetadata(metadata))
 		rv = append(rv, grant)
 	}
 
-	return rv, pageToken, nil, nil
+	return rv, pageToken, annotations, nil
+}
+
+func (o *teamResourceType) Grant(ctx context.Context, principal *v2.Resource, entitlement *v2.Entitlement) (annotations.Annotations, error) {
+	l := ctxzap.Extract(ctx)
+
+	if principal.Id.ResourceType != resourceTypeUser.Id {
+		l.Warn(
+			"baton-linear: only users can be granted team membership",
+			zap.String("principal_type", principal.Id.ResourceType),
+			zap.String("principal_id", principal.Id.Resource),
+		)
+		return nil, fmt.Errorf("baton-linear: only users can be granted team membership")
+	}
+
+	_, err := o.client.AddMemberToTeam(ctx, entitlement.Resource.Id.Resource, principal.Id.Resource)
+	if err != nil {
+		return nil, fmt.Errorf("baton-linear: failed adding user to team: %w", err)
+	}
+	return nil, nil
+}
+
+func (o *teamResourceType) Revoke(ctx context.Context, grant *v2.Grant) (annotations.Annotations, error) {
+	l := ctxzap.Extract(ctx)
+
+	principal := grant.Principal
+
+	if principal.Id.ResourceType != resourceTypeUser.Id {
+		l.Warn(
+			"baton-linear: only users can have team membership revoked",
+			zap.String("principal_type", principal.Id.ResourceType),
+			zap.String("principal_id", principal.Id.Resource),
+		)
+		return nil, fmt.Errorf("baton-linear: only users can have team membership revoked")
+	}
+
+	metadata := &structpb.Struct{}
+	annos := annotations.Annotations(grant.Annotations)
+	ok, err := annos.Pick(metadata)
+	if err != nil {
+		return nil, err
+	}
+
+	if !ok {
+		return nil, fmt.Errorf("baton-linear: annotation does not exist: %w", err)
+	}
+
+	membershipId := metadata.Fields["membership_id"].GetStringValue()
+
+	success, err := o.client.RemoveTeamMembership(ctx, membershipId)
+	if err != nil {
+		return nil, fmt.Errorf("baton-linear: failed removing user from team: %w", err)
+	}
+
+	if !success {
+		return nil, fmt.Errorf("baton-linear: failed removing user from team")
+	}
+
+	return nil, nil
 }
 
 func teamBuilder(client *linear.Client) *teamResourceType {
