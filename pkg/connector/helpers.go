@@ -18,7 +18,11 @@ import (
 // resourcePageSize defines a default page size for pagination.
 const resourcePageSize = 50
 
-var titleCaser = cases.Title(language.English)
+func titleCase(s string) string {
+	titleCaser := cases.Title(language.English)
+
+	return titleCaser.String(s)
+}
 
 // extractRateLimitData returns a set of annotations for rate limiting given the rate limit headers provided by Linear.
 func extractRateLimitData(response *http.Response) (*v2.RateLimitDescription, error) {
