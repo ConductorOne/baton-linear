@@ -8,6 +8,7 @@ import (
 
 	"github.com/conductorone/baton-linear/pkg/linear"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
+	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -17,7 +18,11 @@ import (
 // resourcePageSize defines a default page size for pagination.
 const resourcePageSize = 50
 
-var titleCaser = cases.Title(language.English)
+func titleCase(s string) string {
+	titleCaser := cases.Title(language.English)
+
+	return titleCaser.String(s)
+}
 
 // extractRateLimitData returns a set of annotations for rate limiting given the rate limit headers provided by Linear.
 func extractRateLimitData(response *http.Response) (*v2.RateLimitDescription, error) {
@@ -108,4 +113,10 @@ func parseMultipleTokens(token *pagination.Token) (linear.PaginationVars, error)
 	}
 
 	return paginationOptions, nil
+}
+
+func annotationsForUserResourceType() annotations.Annotations {
+	annos := annotations.Annotations{}
+	annos.Update(&v2.SkipEntitlementsAndGrants{})
+	return annos
 }

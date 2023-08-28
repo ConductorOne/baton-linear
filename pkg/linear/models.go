@@ -62,10 +62,10 @@ type Team struct {
 	Name        string      `json:"name"`
 	Key         string      `json:"key"`
 	Description interface{} `json:"description"`
-	Members     struct {
-		Nodes    []User   `json:"nodes"`
-		PageInfo PageInfo `json:"pageInfo"`
-	} `json:"members"`
+	Memberships struct {
+		Nodes    []TeamMembership `json:"nodes"`
+		PageInfo PageInfo         `json:"pageInfo"`
+	}
 }
 
 type Project struct {
@@ -110,4 +110,10 @@ type ProjectTokensState struct {
 type Tokens struct {
 	UsersToken string `json:"usersToken,omitempty"`
 	TeamsToken string `json:"teamsToken,omitempty"`
+}
+
+type TeamMembership struct {
+	ID   string `json:"id"`
+	User User   `json:"user"`
+	Team Team   `json:"team"`
 }
