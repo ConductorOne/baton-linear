@@ -1,12 +1,10 @@
 package linear
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/conductorone/baton-sdk/pkg/uhttp"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
@@ -17,6 +15,7 @@ const APIEndpoint = "https://api.linear.app/graphql"
 type Client struct {
 	httpClient *uhttp.BaseHttpClient
 	apiKey     string
+	apiUrl     *url.URL
 }
 
 func NewClient(ctx context.Context, apiKey string) (*Client, error) {
@@ -28,8 +27,14 @@ func NewClient(ctx context.Context, apiKey string) (*Client, error) {
 	}
 	wrapper := uhttp.NewBaseHttpClient(httpClient)
 
+	apiUrl, err := url.Parse(APIEndpoint)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Client{
 		apiKey:     apiKey,
+		apiUrl:     apiUrl,
 		httpClient: wrapper,
 	}, nil
 }
@@ -106,10 +111,6 @@ type PaginationVars struct {
 
 // GetUsers returns all users from Linear organization.
 func (c *Client) GetUsers(ctx context.Context, getResourceVars GetResourcesVars) ([]User, string, *http.Response, error) {
-	vars, err := json.Marshal(getResourceVars)
-	if err != nil {
-		return nil, "", nil, err
-	}
 	query := `query Users($after: String, $first: Int) {
 			users(after: $after, first: $first) {
 				nodes {
@@ -135,10 +136,10 @@ func (c *Client) GetUsers(ctx context.Context, getResourceVars GetResourcesVars)
 				}
 			}
 		}`
-	b, _ := json.Marshal(map[string]interface{}{
+	b := map[string]interface{}{
 		"query":     query,
-		"variables": string(vars),
-	})
+		"variables": getResourceVars,
+	}
 
 	var res GraphQLUsersResponse
 	resp, err := c.doRequest(ctx, b, &res)
@@ -155,10 +156,6 @@ func (c *Client) GetUsers(ctx context.Context, getResourceVars GetResourcesVars)
 
 // GetTeams returns all teams from Linear organization.
 func (c *Client) GetTeams(ctx context.Context, getResourceVars GetResourcesVars) ([]Team, string, *http.Response, error) {
-	varsB, err := json.Marshal(getResourceVars)
-	if err != nil {
-		return nil, "", nil, err
-	}
 	query := `query Teams($after: String, $first: Int) {
 			teams(after: $after, first: $first) {
 				nodes {
@@ -175,10 +172,10 @@ func (c *Client) GetTeams(ctx context.Context, getResourceVars GetResourcesVars)
 				}
 			}
 		}`
-	b, _ := json.Marshal(map[string]interface{}{
+	b := map[string]interface{}{
 		"query":     query,
-		"variables": string(varsB),
-	})
+		"variables": getResourceVars,
+	}
 
 	var res GraphQLTeamsResponse
 	resp, err := c.doRequest(ctx, b, &res)
@@ -195,10 +192,6 @@ func (c *Client) GetTeams(ctx context.Context, getResourceVars GetResourcesVars)
 
 // GetProjects returns all projects from Linear organization.
 func (c *Client) GetProjects(ctx context.Context, getResourceVars GetResourcesVars) ([]Project, string, *http.Response, error) {
-	vars, err := json.Marshal(getResourceVars)
-	if err != nil {
-		return nil, "", nil, err
-	}
 	query := `query Projects($after: String, $first: Int) {
 			projects(after: $after, first: $first) {
 				nodes {
@@ -216,10 +209,10 @@ func (c *Client) GetProjects(ctx context.Context, getResourceVars GetResourcesVa
 				}
 			}
 		}`
-	b, _ := json.Marshal(map[string]interface{}{
+	b := map[string]interface{}{
 		"query":     query,
-		"variables": string(vars),
-	})
+		"variables": getResourceVars,
+	}
 
 	var res GraphQLProjectsResponse
 	resp, err := c.doRequest(ctx, b, &res)
@@ -236,11 +229,6 @@ func (c *Client) GetProjects(ctx context.Context, getResourceVars GetResourcesVa
 
 // GetOrganization returns a single Linear organization.
 func (c *Client) GetOrganization(ctx context.Context, paginationVars PaginationVars) (Organization, Tokens, *http.Response, error) {
-	vars, err := json.Marshal(paginationVars)
-	if err != nil {
-		return Organization{}, Tokens{}, nil, err
-	}
-
 	query := `query Organization($usersAfter: String, $teamsAfter: String, $first: Int) {
 			organization {
 				id
@@ -278,10 +266,10 @@ func (c *Client) GetOrganization(ctx context.Context, paginationVars PaginationV
 				}
 			}
 		}`
-	b, _ := json.Marshal(map[string]interface{}{
+	b := map[string]interface{}{
 		"query":     query,
-		"variables": string(vars),
-	})
+		"variables": paginationVars,
+	}
 
 	var res GraphQLOrganizationResponse
 	resp, err := c.doRequest(ctx, b, &res)
@@ -310,11 +298,6 @@ func (c *Client) GetTeam(ctx context.Context, getTeamVars GetTeamVars) (Team, st
 		vars.After = getTeamVars.After
 	}
 
-	jsonString, err := json.Marshal(vars)
-	if err != nil {
-		return Team{}, "", nil, err
-	}
-
 	query := `query Team($teamId: String!, $after: String, $first: Int) {
 			team(id: $teamId) {
 				id
@@ -340,10 +323,10 @@ func (c *Client) GetTeam(ctx context.Context, getTeamVars GetTeamVars) (Team, st
 				}
 			}
 		}`
-	b, _ := json.Marshal(map[string]interface{}{
+	b := map[string]interface{}{
 		"query":     query,
-		"variables": string(jsonString),
-	})
+		"variables": vars,
+	}
 
 	var res GraphQLTeamResponse
 	resp, err := c.doRequest(ctx, b, &res)
@@ -360,11 +343,6 @@ func (c *Client) GetTeam(ctx context.Context, getTeamVars GetTeamVars) (Team, st
 
 // GetProject returns single Project details.
 func (c *Client) GetProject(ctx context.Context, getProjectVars GetProjectVars) (Project, Tokens, *http.Response, error) {
-	vars, err := json.Marshal(getProjectVars)
-	if err != nil {
-		return Project{}, Tokens{}, nil, err
-	}
-
 	query := `query Project($projectId: String!, $usersAfter: String, $teamsAfter: String, $first: Int) {
 			project(id: $projectId) {
 				description
@@ -398,10 +376,10 @@ func (c *Client) GetProject(ctx context.Context, getProjectVars GetProjectVars) 
 				}
 			}
 		}`
-	b, _ := json.Marshal(map[string]interface{}{
+	b := map[string]interface{}{
 		"query":     query,
-		"variables": string(vars),
-	})
+		"variables": getProjectVars,
+	}
 
 	var res GraphQLProjectResponse
 	resp, err := c.doRequest(ctx, b, &res)
@@ -431,9 +409,9 @@ func (c *Client) Authorize(ctx context.Context) (ViewerPermissions, *http.Respon
 				admin
 			}
 		}`
-	b, _ := json.Marshal(map[string]interface{}{
+	b := map[string]interface{}{
 		"query": query,
-	})
+	}
 
 	var res GraphQLViewerResponse
 	resp, err := c.doRequest(ctx, b, &res)
@@ -454,22 +432,17 @@ func (c *Client) AddMemberToTeam(ctx context.Context, teamId, userId string) (st
 			}
 		}`
 
-	vars, err := json.Marshal(map[string]interface{}{
+	vars := map[string]interface{}{
 		"input": map[string]interface{}{
 			"teamId": teamId,
 			"userId": userId,
 		},
-	})
-
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal vars: %w", err)
 	}
 
-	b, _ := json.Marshal(map[string]interface{}{
+	b := map[string]interface{}{
 		"query":     mutation,
-		"variables": string(vars),
-	},
-	)
+		"variables": vars,
+	}
 
 	var res struct {
 		TeamMembership struct {
@@ -493,18 +466,12 @@ func (c *Client) RemoveTeamMembership(ctx context.Context, teamMembershipId stri
 			}
 		}`
 
-	vars, err := json.Marshal(map[string]interface{}{
-		"teamMembershipDeleteId": teamMembershipId,
-	})
-
-	if err != nil {
-		return false, err
+	b := map[string]interface{}{
+		"query": mutation,
+		"variables": map[string]interface{}{
+			"teamMembershipDeleteId": teamMembershipId,
+		},
 	}
-
-	b, _ := json.Marshal(map[string]interface{}{
-		"query":     mutation,
-		"variables": string(vars),
-	})
 
 	var res struct {
 		Data struct {
@@ -527,11 +494,6 @@ func (c *Client) GetTeamMemberships(ctx context.Context, getTeamVars GetTeamVars
 
 	if getTeamVars.After != "" {
 		vars.After = getTeamVars.After
-	}
-
-	jsonString, err := json.Marshal(vars)
-	if err != nil {
-		return nil, "", nil, err
 	}
 
 	query := `query TeamMemberships($teamId: String!, $after: String, $first: Int) {
@@ -558,10 +520,10 @@ func (c *Client) GetTeamMemberships(ctx context.Context, getTeamVars GetTeamVars
 				}
 			}
 		}`
-	b, _ := json.Marshal(map[string]interface{}{
+	b := map[string]interface{}{
 		"query":     query,
-		"variables": string(jsonString),
-	})
+		"variables": vars,
+	}
 
 	var res GraphQLTeamResponse
 	resp, err := c.doRequest(ctx, b, &res)
@@ -572,27 +534,23 @@ func (c *Client) GetTeamMemberships(ctx context.Context, getTeamVars GetTeamVars
 	return res.Data.Team.Memberships.Nodes, "", resp, nil
 }
 
-func (c *Client) doRequest(ctx context.Context, body []byte, res interface{}) (*http.Response, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, APIEndpoint, bytes.NewReader(body))
+func (c *Client) doRequest(ctx context.Context, body interface{}, res interface{}) (*http.Response, error) {
+	options := []uhttp.RequestOption{
+		uhttp.WithHeader("Authorization", c.apiKey),
+		uhttp.WithAcceptJSONHeader(),
+		uhttp.WithJSONBody(body),
+	}
+
+	req, err := c.httpClient.NewRequest(ctx, http.MethodPost, c.apiUrl, options...)
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Add("Authorization", c.apiKey)
-	req.Header.Add("Content-Type", "application/json")
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, err
+	var gqlErr GraphQLError
+	doOptions := []uhttp.DoOption{
+		uhttp.WithErrorResponse(&gqlErr),
+		uhttp.WithJSONResponse(res),
 	}
-	defer resp.Body.Close()
 
-	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		// failed to parse successful response, try decoding GQL error
-		var gqlErr GraphQLError
-		if err := json.NewDecoder(resp.Body).Decode(&gqlErr); err == nil {
-			return nil, errors.New(gqlErr.Errors[0].Message)
-		}
-		return nil, err
-	}
-	return resp, nil
+	return c.httpClient.Do(req, doOptions...)
 }
