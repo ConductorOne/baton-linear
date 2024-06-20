@@ -286,7 +286,7 @@ func (c *Client) GetOrganization(ctx context.Context, paginationVars PaginationV
 	var res GraphQLOrganizationResponse
 	resp, err := c.doRequest(ctx, b, &res)
 	if err != nil {
-		return Organization{}, Tokens{}, nil, err
+		return Organization{}, Tokens{}, resp, err
 	}
 
 	var tokens Tokens
