@@ -7,20 +7,31 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+
+	"github.com/conductorone/baton-sdk/pkg/uhttp"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 )
 
 const APIEndpoint = "https://api.linear.app/graphql"
 
 type Client struct {
-	httpClient *http.Client
+	httpClient *uhttp.BaseHttpClient
 	apiKey     string
 }
 
-func NewClient(apiKey string, httpClient *http.Client) *Client {
+func NewClient(ctx context.Context, apiKey string) (*Client, error) {
+	options := []uhttp.Option{uhttp.WithLogger(true, ctxzap.Extract(ctx))}
+
+	httpClient, err := uhttp.NewClient(ctx, options...)
+	if err != nil {
+		return nil, fmt.Errorf("creating HTTP client failed: %w", err)
+	}
+	wrapper := uhttp.NewBaseHttpClient(httpClient)
+
 	return &Client{
 		apiKey:     apiKey,
-		httpClient: httpClient,
-	}
+		httpClient: wrapper,
+	}, nil
 }
 
 type GraphQLUsersResponse struct {
