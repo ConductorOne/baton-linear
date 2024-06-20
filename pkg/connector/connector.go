@@ -8,8 +8,6 @@ import (
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
-	"github.com/conductorone/baton-sdk/pkg/uhttp"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 )
 
 var (
@@ -77,12 +75,12 @@ func (ln *Linear) Validate(ctx context.Context) (annotations.Annotations, error)
 
 // New returns the Linear connector.
 func New(ctx context.Context, apiKey string) (*Linear, error) {
-	httpClient, err := uhttp.NewClient(ctx, uhttp.WithLogger(true, ctxzap.Extract(ctx)))
+	client, err := linear.NewClient(ctx, apiKey)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Linear{
-		client: linear.NewClient(apiKey, httpClient),
+		client: client,
 	}, nil
 }
