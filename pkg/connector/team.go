@@ -61,20 +61,15 @@ func (o *teamResourceType) List(ctx context.Context, parentId *v2.ResourceId, to
 		return nil, "", nil, err
 	}
 
-	teams, nextToken, resp, err := o.client.GetTeams(ctx, linear.GetResourcesVars{After: bag.PageToken(), First: resourcePageSize})
+	teams, nextToken, _, rlData, err := o.client.GetTeams(ctx, linear.GetResourcesVars{After: bag.PageToken(), First: resourcePageSize})
+	annotations.WithRateLimiting(rlData)
 	if err != nil {
-		return nil, "", nil, fmt.Errorf("linear-connector: failed to list teams: %w", err)
+		return nil, "", annotations, fmt.Errorf("linear-connector: failed to list teams: %w", err)
 	}
-	resp.Body.Close()
 
 	pageToken, err := bag.NextToken(nextToken)
 	if err != nil {
-		return nil, "", nil, err
-	}
-
-	restApiRateLimit, err := extractRateLimitData(resp)
-	if err != nil {
-		return nil, "", nil, err
+		return nil, "", annotations, err
 	}
 
 	var rv []*v2.Resource
@@ -82,11 +77,10 @@ func (o *teamResourceType) List(ctx context.Context, parentId *v2.ResourceId, to
 		teamCopy := team
 		ur, err := teamResource(&teamCopy, parentId)
 		if err != nil {
-			return nil, "", nil, err
+			return nil, "", annotations, err
 		}
 		rv = append(rv, ur)
 	}
-	annotations.WithRateLimiting(restApiRateLimit)
 
 	return rv, pageToken, annotations, nil
 }
@@ -115,29 +109,22 @@ func (o *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, to
 		return nil, "", nil, err
 	}
 
-	team, nextToken, resp, err := o.client.GetTeam(ctx, linear.GetTeamVars{TeamId: resource.Id.Resource, After: bag.PageToken(), First: resourcePageSize})
+	team, nextToken, _, rlData, err := o.client.GetTeam(ctx, linear.GetTeamVars{TeamId: resource.Id.Resource, After: bag.PageToken(), First: resourcePageSize})
+	annotations.WithRateLimiting(rlData)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, "", annotations, err
 	}
-	resp.Body.Close()
 
 	pageToken, err := bag.NextToken(nextToken)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, "", annotations, err
 	}
-
-	restApiRateLimit, err := extractRateLimitData(resp)
-	if err != nil {
-		return nil, "", nil, err
-	}
-
-	annotations.WithRateLimiting(restApiRateLimit)
 
 	for _, membership := range team.Memberships.Nodes {
 		membershipCopy := membership
 		ur, err := userResource(ctx, &membershipCopy.User, resource.Id)
 		if err != nil {
-			return nil, "", nil, err
+			return nil, "", annotations, err
 		}
 
 		metadata := map[string]interface{}{

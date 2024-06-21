@@ -58,15 +58,9 @@ func (o *projectResourceType) List(ctx context.Context, parentId *v2.ResourceId,
 		return nil, "", nil, err
 	}
 
-	projects, nextToken, resp, err := o.client.GetProjects(ctx, linear.GetResourcesVars{First: resourcePageSize, After: bag.PageToken()})
+	projects, nextToken, _, restApiRateLimit, err := o.client.GetProjects(ctx, linear.GetResourcesVars{First: resourcePageSize, After: bag.PageToken()})
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("linear-connector: failed to list projects: %w", err)
-	}
-	resp.Body.Close()
-
-	restApiRateLimit, err := extractRateLimitData(resp)
-	if err != nil {
-		return nil, "", nil, err
 	}
 
 	pageToken, err := bag.NextToken(nextToken)
@@ -133,7 +127,7 @@ func (o *projectResourceType) Grants(ctx context.Context, resource *v2.Resource,
 		return nil, "", nil, fmt.Errorf("error fetching project_id from project profile")
 	}
 
-	project, nextTokens, resp, err := o.client.GetProject(
+	project, nextTokens, _, rlData, err := o.client.GetProject(
 		ctx,
 		linear.GetProjectVars{
 			ProjectId:  projectId,
@@ -145,7 +139,8 @@ func (o *projectResourceType) Grants(ctx context.Context, resource *v2.Resource,
 	if err != nil {
 		return nil, "", nil, err
 	}
-	resp.Body.Close()
+	var annotations annotations.Annotations
+	annotations.WithRateLimiting(rlData)
 
 	var pageToken string
 	if nextTokens.TeamsToken != "" || nextTokens.UsersToken != "" {

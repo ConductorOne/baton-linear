@@ -64,11 +64,10 @@ func (ln *Linear) Metadata(ctx context.Context) (*v2.ConnectorMetadata, error) {
 
 // Validate hits the Linear API to assure that the API key is valid.
 func (ln *Linear) Validate(ctx context.Context) (annotations.Annotations, error) {
-	_, resp, err := ln.client.Authorize(ctx)
+	_, _, _, err := ln.client.Authorize(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("linear-connector: failed to authenticate. Error: %w", err)
 	}
-	resp.Body.Close()
 
 	return nil, nil
 }
