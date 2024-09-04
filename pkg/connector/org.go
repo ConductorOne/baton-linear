@@ -56,37 +56,31 @@ func (o *orgResourceType) List(ctx context.Context, parentId *v2.ResourceId, tok
 		return nil, "", nil, err
 	}
 
-	org, nextTokens, resp, err := o.client.GetOrganization(ctx, paginationOptions)
+	org, nextTokens, _, restApiRateLimit, err := o.client.GetOrganization(ctx, paginationOptions)
+	annotations.WithRateLimiting(restApiRateLimit)
 	if err != nil {
-		return nil, "", nil, fmt.Errorf("linear-connector: failed to list an organization: %w", err)
+		return nil, "", annotations, fmt.Errorf("linear-connector: failed to list an organization: %w", err)
 	}
-	resp.Body.Close()
 
 	var pageToken string
 	if nextTokens.TeamsToken != "" || nextTokens.UsersToken != "" {
 		stringTokens, err := json.Marshal(nextTokens)
 		if err != nil {
-			return nil, "", nil, err
+			return nil, "", annotations, err
 		}
 		pageToken, err = bag.NextToken(string(stringTokens))
 		if err != nil {
-			return nil, "", nil, err
+			return nil, "", annotations, err
 		}
-	}
-
-	restApiRateLimit, err := extractRateLimitData(resp)
-	if err != nil {
-		return nil, "", nil, err
 	}
 
 	var rv []*v2.Resource
 	ur, err := orgResource(&org, parentId)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, "", annotations, err
 	}
 
 	rv = append(rv, ur)
-	annotations.WithRateLimiting(restApiRateLimit)
 
 	return rv, pageToken, annotations, nil
 }
@@ -118,11 +112,12 @@ func (o *orgResourceType) Grants(ctx context.Context, resource *v2.Resource, tok
 		return nil, "", nil, err
 	}
 
-	org, nextTokens, resp, err := o.client.GetOrganization(ctx, paginationOptions)
+	org, nextTokens, _, rlData, err := o.client.GetOrganization(ctx, paginationOptions)
 	if err != nil {
 		return nil, "", nil, err
 	}
-	resp.Body.Close()
+	var annotations annotations.Annotations
+	annotations.WithRateLimiting(rlData)
 
 	var pageToken string
 	if nextTokens.TeamsToken != "" || nextTokens.UsersToken != "" {

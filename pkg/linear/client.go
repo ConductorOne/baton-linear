@@ -6,8 +6,11 @@ import (
 	"net/http"
 	"net/url"
 
+	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/uhttp"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const APIEndpoint = "https://api.linear.app/graphql"
@@ -110,7 +113,7 @@ type PaginationVars struct {
 }
 
 // GetUsers returns all users from Linear organization.
-func (c *Client) GetUsers(ctx context.Context, getResourceVars GetResourcesVars) ([]User, string, *http.Response, error) {
+func (c *Client) GetUsers(ctx context.Context, getResourceVars GetResourcesVars) ([]User, string, *http.Response, *v2.RateLimitDescription, error) {
 	query := `query Users($after: String, $first: Int) {
 			users(after: $after, first: $first) {
 				nodes {
@@ -142,20 +145,20 @@ func (c *Client) GetUsers(ctx context.Context, getResourceVars GetResourcesVars)
 	}
 
 	var res GraphQLUsersResponse
-	resp, err := c.doRequest(ctx, b, &res)
+	resp, rlData, err := c.doRequest(ctx, b, &res)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, "", resp, rlData, err
 	}
 
 	if res.Data.Users.PageInfo.HasNextPage {
-		return res.Data.Users.Nodes, res.Data.Users.PageInfo.EndCursor, resp, nil
+		return res.Data.Users.Nodes, res.Data.Users.PageInfo.EndCursor, resp, rlData, nil
 	}
 
-	return res.Data.Users.Nodes, "", resp, nil
+	return res.Data.Users.Nodes, "", resp, rlData, nil
 }
 
 // GetTeams returns all teams from Linear organization.
-func (c *Client) GetTeams(ctx context.Context, getResourceVars GetResourcesVars) ([]Team, string, *http.Response, error) {
+func (c *Client) GetTeams(ctx context.Context, getResourceVars GetResourcesVars) ([]Team, string, *http.Response, *v2.RateLimitDescription, error) {
 	query := `query Teams($after: String, $first: Int) {
 			teams(after: $after, first: $first) {
 				nodes {
@@ -178,20 +181,20 @@ func (c *Client) GetTeams(ctx context.Context, getResourceVars GetResourcesVars)
 	}
 
 	var res GraphQLTeamsResponse
-	resp, err := c.doRequest(ctx, b, &res)
+	resp, rlData, err := c.doRequest(ctx, b, &res)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, "", resp, rlData, err
 	}
 
 	if res.Data.Teams.PageInfo.HasNextPage {
-		return res.Data.Teams.Nodes, res.Data.Teams.PageInfo.EndCursor, resp, nil
+		return res.Data.Teams.Nodes, res.Data.Teams.PageInfo.EndCursor, resp, rlData, nil
 	}
 
-	return res.Data.Teams.Nodes, "", resp, nil
+	return res.Data.Teams.Nodes, "", resp, rlData, nil
 }
 
 // GetProjects returns all projects from Linear organization.
-func (c *Client) GetProjects(ctx context.Context, getResourceVars GetResourcesVars) ([]Project, string, *http.Response, error) {
+func (c *Client) GetProjects(ctx context.Context, getResourceVars GetResourcesVars) ([]Project, string, *http.Response, *v2.RateLimitDescription, error) {
 	query := `query Projects($after: String, $first: Int) {
 			projects(after: $after, first: $first) {
 				nodes {
@@ -215,20 +218,20 @@ func (c *Client) GetProjects(ctx context.Context, getResourceVars GetResourcesVa
 	}
 
 	var res GraphQLProjectsResponse
-	resp, err := c.doRequest(ctx, b, &res)
+	resp, rlData, err := c.doRequest(ctx, b, &res)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, "", resp, rlData, err
 	}
 
 	if res.Data.Projects.PageInfo.HasNextPage {
-		return res.Data.Projects.Nodes, res.Data.Projects.PageInfo.EndCursor, resp, nil
+		return res.Data.Projects.Nodes, res.Data.Projects.PageInfo.EndCursor, resp, rlData, nil
 	}
 
-	return res.Data.Projects.Nodes, "", resp, nil
+	return res.Data.Projects.Nodes, "", resp, rlData, nil
 }
 
 // GetOrganization returns a single Linear organization.
-func (c *Client) GetOrganization(ctx context.Context, paginationVars PaginationVars) (Organization, Tokens, *http.Response, error) {
+func (c *Client) GetOrganization(ctx context.Context, paginationVars PaginationVars) (Organization, Tokens, *http.Response, *v2.RateLimitDescription, error) {
 	query := `query Organization($usersAfter: String, $teamsAfter: String, $first: Int) {
 			organization {
 				id
@@ -272,9 +275,9 @@ func (c *Client) GetOrganization(ctx context.Context, paginationVars PaginationV
 	}
 
 	var res GraphQLOrganizationResponse
-	resp, err := c.doRequest(ctx, b, &res)
+	resp, rlData, err := c.doRequest(ctx, b, &res)
 	if err != nil {
-		return Organization{}, Tokens{}, resp, err
+		return Organization{}, Tokens{}, resp, rlData, err
 	}
 
 	var tokens Tokens
@@ -287,11 +290,11 @@ func (c *Client) GetOrganization(ctx context.Context, paginationVars PaginationV
 		tokens.TeamsToken = res.Data.Organization.Teams.PageInfo.EndCursor
 	}
 
-	return res.Data.Organization, tokens, resp, nil
+	return res.Data.Organization, tokens, resp, rlData, nil
 }
 
 // GetTeam returns single Team details.
-func (c *Client) GetTeam(ctx context.Context, getTeamVars GetTeamVars) (Team, string, *http.Response, error) {
+func (c *Client) GetTeam(ctx context.Context, getTeamVars GetTeamVars) (Team, string, *http.Response, *v2.RateLimitDescription, error) {
 	vars := GetTeamVars{TeamId: getTeamVars.TeamId, First: getTeamVars.First, After: ""}
 
 	if getTeamVars.After != "" {
@@ -329,20 +332,20 @@ func (c *Client) GetTeam(ctx context.Context, getTeamVars GetTeamVars) (Team, st
 	}
 
 	var res GraphQLTeamResponse
-	resp, err := c.doRequest(ctx, b, &res)
+	resp, rlData, err := c.doRequest(ctx, b, &res)
 	if err != nil {
-		return Team{}, "", nil, err
+		return Team{}, "", resp, rlData, err
 	}
 
 	if res.Data.Team.Memberships.PageInfo.HasNextPage {
-		return res.Data.Team, res.Data.Team.Memberships.PageInfo.EndCursor, resp, nil
+		return res.Data.Team, res.Data.Team.Memberships.PageInfo.EndCursor, resp, rlData, nil
 	}
 
-	return res.Data.Team, "", resp, nil
+	return res.Data.Team, "", resp, rlData, nil
 }
 
 // GetProject returns single Project details.
-func (c *Client) GetProject(ctx context.Context, getProjectVars GetProjectVars) (Project, Tokens, *http.Response, error) {
+func (c *Client) GetProject(ctx context.Context, getProjectVars GetProjectVars) (Project, Tokens, *http.Response, *v2.RateLimitDescription, error) {
 	query := `query Project($projectId: String!, $usersAfter: String, $teamsAfter: String, $first: Int) {
 			project(id: $projectId) {
 				description
@@ -382,9 +385,9 @@ func (c *Client) GetProject(ctx context.Context, getProjectVars GetProjectVars) 
 	}
 
 	var res GraphQLProjectResponse
-	resp, err := c.doRequest(ctx, b, &res)
+	resp, rlData, err := c.doRequest(ctx, b, &res)
 	if err != nil {
-		return Project{}, Tokens{}, nil, err
+		return Project{}, Tokens{}, resp, rlData, err
 	}
 
 	var tokens Tokens
@@ -397,11 +400,11 @@ func (c *Client) GetProject(ctx context.Context, getProjectVars GetProjectVars) 
 		tokens.TeamsToken = res.Data.Project.Teams.PageInfo.EndCursor
 	}
 
-	return res.Data.Project, tokens, resp, nil
+	return res.Data.Project, tokens, resp, rlData, nil
 }
 
 // Authorize returns permissions of user calling the API.
-func (c *Client) Authorize(ctx context.Context) (ViewerPermissions, *http.Response, error) {
+func (c *Client) Authorize(ctx context.Context) (ViewerPermissions, *http.Response, *v2.RateLimitDescription, error) {
 	query := `query Viewer{
 			viewer {
 				guest
@@ -414,12 +417,12 @@ func (c *Client) Authorize(ctx context.Context) (ViewerPermissions, *http.Respon
 	}
 
 	var res GraphQLViewerResponse
-	resp, err := c.doRequest(ctx, b, &res)
+	resp, rlData, err := c.doRequest(ctx, b, &res)
 	if err != nil {
-		return ViewerPermissions{}, nil, err
+		return ViewerPermissions{}, resp, rlData, err
 	}
 
-	return res.Data.Viewer, resp, nil
+	return res.Data.Viewer, resp, rlData, nil
 }
 
 func (c *Client) AddMemberToTeam(ctx context.Context, teamId, userId string) (string, error) {
@@ -449,7 +452,7 @@ func (c *Client) AddMemberToTeam(ctx context.Context, teamId, userId string) (st
 			ID string `json:"id"`
 		} `json:"teamMembership"`
 	}
-	resp, e := c.doRequest(ctx, b, &res)
+	resp, _, e := c.doRequest(ctx, b, &res)
 	if e != nil {
 		return "", e
 	}
@@ -478,7 +481,7 @@ func (c *Client) RemoveTeamMembership(ctx context.Context, teamMembershipId stri
 			TeamMembershipDelete SuccessResponse `json:"teamMembershipDelete"`
 		} `json:"data"`
 	}
-	resp, err := c.doRequest(ctx, b, &res)
+	resp, _, err := c.doRequest(ctx, b, &res)
 	if err != nil {
 		return false, err
 	}
@@ -489,7 +492,7 @@ func (c *Client) RemoveTeamMembership(ctx context.Context, teamMembershipId stri
 }
 
 // GetTeamMemberships returns team memberships from Linear organization.
-func (c *Client) GetTeamMemberships(ctx context.Context, getTeamVars GetTeamVars) ([]TeamMembership, string, *http.Response, error) {
+func (c *Client) GetTeamMemberships(ctx context.Context, getTeamVars GetTeamVars) ([]TeamMembership, string, *http.Response, *v2.RateLimitDescription, error) {
 	vars := GetTeamVars{TeamId: getTeamVars.TeamId, First: getTeamVars.First, After: ""}
 
 	if getTeamVars.After != "" {
@@ -526,15 +529,16 @@ func (c *Client) GetTeamMemberships(ctx context.Context, getTeamVars GetTeamVars
 	}
 
 	var res GraphQLTeamResponse
-	resp, err := c.doRequest(ctx, b, &res)
+	resp, rlData, err := c.doRequest(ctx, b, &res)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, "", resp, rlData, err
 	}
 
-	return res.Data.Team.Memberships.Nodes, "", resp, nil
+	return res.Data.Team.Memberships.Nodes, "", resp, rlData, nil
 }
 
-func (c *Client) doRequest(ctx context.Context, body interface{}, res interface{}) (*http.Response, error) {
+func (c *Client) doRequest(ctx context.Context, body interface{}, res interface{}) (*http.Response, *v2.RateLimitDescription, error) {
+	rlData := &v2.RateLimitDescription{}
 	options := []uhttp.RequestOption{
 		uhttp.WithHeader("Authorization", c.apiKey),
 		uhttp.WithAcceptJSONHeader(),
@@ -543,14 +547,20 @@ func (c *Client) doRequest(ctx context.Context, body interface{}, res interface{
 
 	req, err := c.httpClient.NewRequest(ctx, http.MethodPost, c.apiUrl, options...)
 	if err != nil {
-		return nil, err
+		return nil, rlData, err
 	}
 
 	var gqlErr GraphQLError
 	doOptions := []uhttp.DoOption{
+		uhttp.WithRatelimitData(rlData),
 		uhttp.WithErrorResponse(&gqlErr),
 		uhttp.WithJSONResponse(res),
 	}
 
-	return c.httpClient.Do(req, doOptions...)
+	resp, err := c.httpClient.Do(req, doOptions...)
+	// Linear returns 400 when rate limited, so change it to a retryable error
+	if err != nil && resp.StatusCode == http.StatusBadRequest {
+		return resp, rlData, status.Error(codes.Unavailable, resp.Status)
+	}
+	return resp, rlData, err
 }

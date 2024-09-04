@@ -71,20 +71,15 @@ func (o *userResourceType) List(ctx context.Context, parentId *v2.ResourceId, to
 		return nil, "", nil, err
 	}
 
-	users, nextToken, resp, err := o.client.GetUsers(ctx, linear.GetResourcesVars{First: resourcePageSize, After: bag.PageToken()})
+	users, nextToken, _, rlData, err := o.client.GetUsers(ctx, linear.GetResourcesVars{First: resourcePageSize, After: bag.PageToken()})
+	annotations.WithRateLimiting(rlData)
 	if err != nil {
-		return nil, "", nil, fmt.Errorf("linear-connector: failed to list users: %w", err)
+		return nil, "", annotations, fmt.Errorf("linear-connector: failed to list users: %w", err)
 	}
-	resp.Body.Close()
 
 	pageToken, err := bag.NextToken(nextToken)
 	if err != nil {
-		return nil, "", nil, err
-	}
-
-	restApiRateLimit, err := extractRateLimitData(resp)
-	if err != nil {
-		return nil, "", nil, err
+		return nil, "", annotations, err
 	}
 
 	var rv []*v2.Resource
@@ -92,11 +87,10 @@ func (o *userResourceType) List(ctx context.Context, parentId *v2.ResourceId, to
 		userCopy := user
 		ur, err := userResource(ctx, &userCopy, parentId)
 		if err != nil {
-			return nil, "", nil, err
+			return nil, "", annotations, err
 		}
 		rv = append(rv, ur)
 	}
-	annotations.WithRateLimiting(restApiRateLimit)
 
 	return rv, pageToken, annotations, nil
 }
