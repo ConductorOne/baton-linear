@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/conductorone/baton-sdk/pkg/sync/expand"
-
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"go.uber.org/zap"
 )
@@ -18,7 +16,7 @@ type State interface {
 	NextPage(ctx context.Context, pageToken string) error
 	ResourceTypeID(ctx context.Context) string
 	ResourceID(ctx context.Context) string
-	EntitlementGraph(ctx context.Context) *expand.EntitlementGraph
+	EntitlementGraph(ctx context.Context) *EntitlementGraph
 	ParentResourceID(ctx context.Context) string
 	ParentResourceTypeID(ctx context.Context) string
 	PageToken(ctx context.Context) string
@@ -54,12 +52,12 @@ func (s ActionOp) String() string {
 	}
 }
 
-// MarshalJSON marshals the ActionOp into a json string.
+// MarshalJSON marshals the ActionOp insto a json string.
 func (s *ActionOp) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.String())
 }
 
-// UnmarshalJSON unmarshals the input byte slice and updates this action op.
+// UnmarshalJSON unmarshal's the input byte slice and updates this action op.
 func (s *ActionOp) UnmarshalJSON(data []byte) error {
 	var v string
 	err := json.Unmarshal(data, &v)
@@ -120,21 +118,21 @@ type state struct {
 	mtx              sync.RWMutex
 	actions          []Action
 	currentAction    *Action
-	entitlementGraph *expand.EntitlementGraph
+	entitlementGraph *EntitlementGraph
 	needsExpansion   bool
 }
 
 // serializedToken is used to serialize the token to JSON. This separate object is used to avoid having exported fields
 // on the object used externally. We should interface this, probably.
 type serializedToken struct {
-	Actions          []Action                 `json:"actions"`
-	CurrentAction    *Action                  `json:"current_action"`
-	NeedsExpansion   bool                     `json:"needs_expansion"`
-	EntitlementGraph *expand.EntitlementGraph `json:"entitlement_graph"`
+	Actions          []Action          `json:"actions"`
+	CurrentAction    *Action           `json:"current_action"`
+	NeedsExpansion   bool              `json:"needs_expansion"`
+	EntitlementGraph *EntitlementGraph `json:"entitlement_graph"`
 }
 
 // push adds a new action to the stack. If there is no current state, the action is directly set to current, else
-// the current state is appended to the slice of actions, and the new action is set to current.
+// the current state is appened to the slice of actions, and the new action is set to current.
 func (st *state) push(action Action) {
 	st.mtx.Lock()
 	defer st.mtx.Unlock()
@@ -293,13 +291,13 @@ func (st *state) ResourceID(ctx context.Context) string {
 }
 
 // EntitlementGraph returns the entitlement graph for the current action.
-func (st *state) EntitlementGraph(ctx context.Context) *expand.EntitlementGraph {
+func (st *state) EntitlementGraph(ctx context.Context) *EntitlementGraph {
 	c := st.Current()
 	if c == nil {
 		panic("no current state")
 	}
 	if st.entitlementGraph == nil {
-		st.entitlementGraph = expand.NewEntitlementGraph(ctx)
+		st.entitlementGraph = NewEntitlementGraph(ctx)
 	}
 	return st.entitlementGraph
 }

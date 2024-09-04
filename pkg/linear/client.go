@@ -552,9 +552,9 @@ func (c *Client) doRequest(ctx context.Context, body interface{}, res interface{
 
 	var gqlErr GraphQLError
 	doOptions := []uhttp.DoOption{
+		uhttp.WithRatelimitData(rlData),
 		uhttp.WithErrorResponse(&gqlErr),
 		uhttp.WithJSONResponse(res),
-		uhttp.WithRatelimitData(rlData),
 	}
 
 	resp, err := c.httpClient.Do(req, doOptions...)
