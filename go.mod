@@ -5,7 +5,7 @@ go 1.21
 toolchain go1.22.4
 
 require (
-	github.com/conductorone/baton-sdk v0.1.46
+	github.com/conductorone/baton-sdk v0.2.26
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/spf13/viper v1.18.2
 	go.uber.org/zap v1.27.0
@@ -95,5 +95,3 @@ require (
 	modernc.org/memory v1.8.0 // indirect
 	modernc.org/sqlite v1.29.9 // indirect
 )
-
-replace github.com/conductorone/baton-sdk => ../baton-sdk

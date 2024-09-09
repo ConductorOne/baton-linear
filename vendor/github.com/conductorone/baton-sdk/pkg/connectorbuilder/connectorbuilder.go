@@ -138,7 +138,6 @@ func (b *builderImpl) CreateTicket(ctx context.Context, request *v2.TicketsServi
 		DisplayName:  reqBody.GetDisplayName(),
 		Description:  reqBody.GetDescription(),
 		Status:       reqBody.GetStatus(),
-		Type:         reqBody.GetType(),
 		Labels:       reqBody.GetLabels(),
 		CustomFields: reqBody.GetCustomFields(),
 		RequestedFor: reqBody.GetRequestedFor(),
@@ -374,22 +373,21 @@ func (b *builderImpl) ListResources(ctx context.Context, request *v2.ResourcesSe
 		Size:  int(request.PageSize),
 		Token: request.PageToken,
 	})
-	resp := &v2.ResourcesServiceListResourcesResponse{
-		List:          out,
-		NextPageToken: nextPageToken,
-		Annotations:   annos,
-	}
 	if err != nil {
 		b.m.RecordTaskFailure(ctx, tt, b.nowFunc().Sub(start))
-		return resp, fmt.Errorf("error: listing resources failed: %w", err)
+		return nil, fmt.Errorf("error: listing resources failed: %w", err)
 	}
 	if request.PageToken != "" && request.PageToken == nextPageToken {
 		b.m.RecordTaskFailure(ctx, tt, b.nowFunc().Sub(start))
-		return resp, fmt.Errorf("error: listing resources failed: next page token is the same as the current page token. this is most likely a connector bug")
+		return nil, fmt.Errorf("error: listing resources failed: next page token is the same as the current page token. this is most likely a connector bug")
 	}
 
 	b.m.RecordTaskSuccess(ctx, tt, b.nowFunc().Sub(start))
-	return resp, nil
+	return &v2.ResourcesServiceListResourcesResponse{
+		List:          out,
+		NextPageToken: nextPageToken,
+		Annotations:   annos,
+	}, nil
 }
 
 // ListEntitlements returns all the entitlements for a given resource.
@@ -406,22 +404,21 @@ func (b *builderImpl) ListEntitlements(ctx context.Context, request *v2.Entitlem
 		Size:  int(request.PageSize),
 		Token: request.PageToken,
 	})
-	resp := &v2.EntitlementsServiceListEntitlementsResponse{
-		List:          out,
-		NextPageToken: nextPageToken,
-		Annotations:   annos,
-	}
 	if err != nil {
 		b.m.RecordTaskFailure(ctx, tt, b.nowFunc().Sub(start))
-		return resp, fmt.Errorf("error: listing entitlements failed: %w", err)
+		return nil, fmt.Errorf("error: listing entitlements failed: %w", err)
 	}
 	if request.PageToken != "" && request.PageToken == nextPageToken {
 		b.m.RecordTaskFailure(ctx, tt, b.nowFunc().Sub(start))
-		return resp, fmt.Errorf("error: listing entitlements failed: next page token is the same as the current page token. this is most likely a connector bug")
+		return nil, fmt.Errorf("error: listing entitlements failed: next page token is the same as the current page token. this is most likely a connector bug")
 	}
 
 	b.m.RecordTaskSuccess(ctx, tt, b.nowFunc().Sub(start))
-	return resp, nil
+	return &v2.EntitlementsServiceListEntitlementsResponse{
+		List:          out,
+		NextPageToken: nextPageToken,
+		Annotations:   annos,
+	}, nil
 }
 
 // ListGrants lists all the grants for a given resource.
@@ -439,24 +436,23 @@ func (b *builderImpl) ListGrants(ctx context.Context, request *v2.GrantsServiceL
 		Size:  int(request.PageSize),
 		Token: request.PageToken,
 	})
-	resp := &v2.GrantsServiceListGrantsResponse{
-		List:          out,
-		NextPageToken: nextPageToken,
-		Annotations:   annos,
-	}
 	if err != nil {
 		b.m.RecordTaskFailure(ctx, tt, b.nowFunc().Sub(start))
-		return resp, fmt.Errorf("error: listing grants for resource %s/%s failed: %w", rid.ResourceType, rid.Resource, err)
+		return nil, fmt.Errorf("error: listing grants for resource %s/%s failed: %w", rid.ResourceType, rid.Resource, err)
 	}
 	if request.PageToken != "" && request.PageToken == nextPageToken {
 		b.m.RecordTaskFailure(ctx, tt, b.nowFunc().Sub(start))
-		return resp, fmt.Errorf("error: listing grants for resource %s/%s failed: next page token is the same as the current page token. this is most likely a connector bug",
+		return nil, fmt.Errorf("error: listing grants for resource %s/%s failed: next page token is the same as the current page token. this is most likely a connector bug",
 			rid.ResourceType,
 			rid.Resource)
 	}
 
 	b.m.RecordTaskSuccess(ctx, tt, b.nowFunc().Sub(start))
-	return resp, nil
+	return &v2.GrantsServiceListGrantsResponse{
+		List:          out,
+		NextPageToken: nextPageToken,
+		Annotations:   annos,
+	}, nil
 }
 
 // GetMetadata gets all metadata for a connector.

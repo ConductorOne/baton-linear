@@ -213,20 +213,6 @@ func WithResponse(response interface{}) DoOption {
 	}
 }
 
-func wrapRetryAfterInStatus(httpStatus int, headers *http.Header, preferredCode codes.Code) (*status.Status, error) {
-	description, err := ratelimit.ExtractRateLimitData(httpStatus, headers)
-	if err != nil {
-		return nil, err
-	}
-
-	st := status.New(preferredCode, http.StatusText(httpStatus))
-	st, err = st.WithDetails(description)
-	if err != nil {
-		return nil, err
-	}
-	return st, nil
-}
-
 func (c *BaseHttpClient) Do(req *http.Request, options ...DoOption) (*http.Response, error) {
 	var (
 		cacheKey string
@@ -293,11 +279,7 @@ func (c *BaseHttpClient) Do(req *http.Request, options ...DoOption) (*http.Respo
 	case http.StatusRequestTimeout:
 		return resp, status.Error(codes.DeadlineExceeded, resp.Status)
 	case http.StatusTooManyRequests:
-		st, err := wrapRetryAfterInStatus(http.StatusTooManyRequests, &resp.Header, codes.Unavailable)
-		if err != nil {
-			return resp, status.Error(codes.Unavailable, resp.Status)
-		}
-		return resp, st.Err()
+		return resp, status.Error(codes.Unavailable, resp.Status)
 	case http.StatusNotFound:
 		return resp, status.Error(codes.NotFound, resp.Status)
 	case http.StatusUnauthorized:
@@ -306,19 +288,10 @@ func (c *BaseHttpClient) Do(req *http.Request, options ...DoOption) (*http.Respo
 		return resp, status.Error(codes.PermissionDenied, resp.Status)
 	case http.StatusNotImplemented:
 		return resp, status.Error(codes.Unimplemented, resp.Status)
-	case http.StatusServiceUnavailable:
-		st, err := wrapRetryAfterInStatus(http.StatusServiceUnavailable, &resp.Header, codes.Unavailable)
-		if err != nil {
-			return resp, status.Error(codes.Unavailable, resp.Status)
-		}
-		return resp, st.Err()
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return resp, status.Error(codes.Unknown, fmt.Sprintf("unexpected status code: %d", resp.StatusCode))
-	}
-	if resp.StatusCode >= 500 && resp.StatusCode <= 599 {
-		return resp, status.Error(codes.Unavailable, resp.Status)
 	}
 
 	if req.Method == http.MethodGet && resp.StatusCode == http.StatusOK {
