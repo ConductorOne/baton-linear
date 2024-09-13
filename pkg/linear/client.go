@@ -10,7 +10,6 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/uhttp"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 const APIEndpoint = "https://api.linear.app/graphql"
@@ -560,7 +559,7 @@ func (c *Client) doRequest(ctx context.Context, body interface{}, res interface{
 	resp, err := c.httpClient.Do(req, doOptions...)
 	// Linear returns 400 when rate limited, so change it to a retryable error
 	if err != nil && resp.StatusCode == http.StatusBadRequest {
-		return resp, rlData, status.Error(codes.Unavailable, resp.Status)
+		return resp, rlData, uhttp.WrapErrorsWithRateLimitInfo(codes.Unavailable, resp, err)
 	}
 	return resp, rlData, err
 }
