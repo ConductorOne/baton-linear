@@ -82,6 +82,14 @@ type GraphQLProjectResponse struct {
 	} `json:"data"`
 }
 
+type GraphQLIssueFieldsResponse struct {
+	Data struct {
+		Type struct {
+			InputFields []IssueField `json:"inputFields"`
+		} `json:"__type"`
+	} `json:"data"`
+}
+
 type GraphQLViewerResponse struct {
 	Data struct {
 		Viewer ViewerPermissions `json:"viewer"`
@@ -534,6 +542,87 @@ func (c *Client) GetTeamMemberships(ctx context.Context, getTeamVars GetTeamVars
 	}
 
 	return res.Data.Team.Memberships.Nodes, "", resp, rlData, nil
+}
+
+func (c *Client) GetTeamsWorkflowStates(ctx context.Context, getTeamVars GetTeamVars) ([]Team, string, *http.Response, *v2.RateLimitDescription, error) {
+	vars := GetTeamVars{TeamId: getTeamVars.TeamId, First: getTeamVars.First, After: ""}
+
+	if getTeamVars.After != "" {
+		vars.After = getTeamVars.After
+	}
+
+	// TODO(johnallers): Filter by teamId
+	query := `query TeamWorkflowStates($after: String, $first: Int) {
+				teams(after: $after, first: $first) {
+					nodes {
+						id
+						name
+						states {
+							nodes {
+								id
+								name
+								color
+								type
+							}
+						}
+					}
+					pageInfo {
+						hasPreviousPage
+						hasNextPage
+						startCursor
+						endCursor
+					}
+				}
+			}`
+	b := map[string]interface{}{
+		"query":     query,
+		"variables": vars,
+	}
+
+	var res GraphQLTeamsResponse
+	resp, rlData, err := c.doRequest(ctx, b, &res)
+	if err != nil {
+		return nil, "", resp, rlData, err
+	}
+
+	return res.Data.Teams.Nodes, "", resp, rlData, nil
+}
+
+func (c *Client) GetIssueFields(ctx context.Context) ([]IssueField, string, *http.Response, *v2.RateLimitDescription, error) {
+	query := `query IssueFields {
+				__type(name: "IssueCreateInput") {
+					inputFields(includeDeprecated: false) {
+						name
+						description
+						type {
+							name
+							kind
+							ofType {
+								name
+								kind
+								ofType {
+									name
+									kind
+								}
+							}
+							enumValues(includeDeprecated: false) {
+								name
+							}
+						}
+					}
+				}
+			}`
+	b := map[string]interface{}{
+		"query": query,
+	}
+
+	var res GraphQLIssueFieldsResponse
+	resp, rlData, err := c.doRequest(ctx, b, &res)
+	if err != nil {
+		return nil, "", resp, rlData, err
+	}
+
+	return res.Data.Type.InputFields, "", resp, rlData, nil
 }
 
 func (c *Client) doRequest(ctx context.Context, body interface{}, res interface{}) (*http.Response, *v2.RateLimitDescription, error) {

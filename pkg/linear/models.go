@@ -66,6 +66,10 @@ type Team struct {
 		Nodes    []TeamMembership `json:"nodes"`
 		PageInfo PageInfo         `json:"pageInfo"`
 	}
+	States struct {
+		Nodes    []WorkflowState `json:"nodes"`
+		PageInfo PageInfo        `json:"pageInfo"`
+	} `json:"states,omitempty"`
 }
 
 type Project struct {
@@ -127,4 +131,39 @@ type TeamMembership struct {
 	ID   string `json:"id"`
 	User User   `json:"user"`
 	Team Team   `json:"team"`
+}
+
+type WorkflowType string
+
+const (
+	Backlog   WorkflowType = "backlog"
+	Unstarted WorkflowType = "unstarted"
+	Started   WorkflowType = "started"
+	Completed WorkflowType = "completed"
+	Canceled  WorkflowType = "canceled"
+)
+
+type WorkflowState struct {
+	ID    string       `json:"id"`
+	Name  string       `json:"name"`
+	Color string       `json:"color"`
+	Type  WorkflowType `json:"type"`
+}
+
+type IssueField struct {
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	Type        IssueFieldType `json:"type"`
+}
+
+type IssueFieldType struct {
+	Name        string                `json:"name"`
+	Description string                `json:"description"`
+	Kind        string                `json:"kind"`
+	OfType      *IssueFieldType       `json:"ofType,omitempty"`
+	EnumValues  []IssueFieldEnumValue `json:"enumValues,omitempty"`
+}
+
+type IssueFieldEnumValue struct {
+	Name string `json:"name"`
 }
