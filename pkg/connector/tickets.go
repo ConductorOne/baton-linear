@@ -3,6 +3,7 @@ package connector
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/conductorone/baton-linear/pkg/linear"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
@@ -23,7 +24,6 @@ func (ln *Linear) GetTicketSchema(ctx context.Context, schemaID string) (*v2.Tic
 	return nil, nil, fmt.Errorf("GetTicketSchema not implemented")
 }
 
-// Issue Templates
 func (ln *Linear) ListTicketSchemas(ctx context.Context, p *pagination.Token) ([]*v2.TicketSchema, string, annotations.Annotations, error) {
 	var annotations annotations.Annotations
 	bag, err := parsePageToken(p.Token, &v2.ResourceId{ResourceType: resourceTypeTeam.Id})
@@ -32,6 +32,7 @@ func (ln *Linear) ListTicketSchemas(ctx context.Context, p *pagination.Token) ([
 	}
 
 	// TODO(johnallers): Test with resourcePageSize == 1
+	// Linear Issues currently vary only by Workflow State per Team
 	teams, nextToken, _, rlData, err := ln.client.GetTeamsWorkflowStates(ctx, linear.GetTeamVars{After: bag.PageToken(), First: resourcePageSize})
 	annotations.WithRateLimiting(rlData)
 	if err != nil {
@@ -91,19 +92,21 @@ func (ln *Linear) getCustomFields(ctx context.Context) (map[string]*v2.TicketCus
 }
 
 func getCustomFieldSchema(field linear.IssueField) (*v2.TicketCustomField, bool) {
+	if strings.HasPrefix(field.Description, "[Internal]") {
+		return nil, false
+	}
 	switch field.Type.Kind {
 	case "SCALAR":
 		switch field.Type.Name {
 		case "String":
-			return sdkTicket.StringFieldSchema(field.Name, field.Description, false), true
+			return sdkTicket.StringFieldSchema(field.Name, field.Name, false), true
 		case "Boolean":
-			return sdkTicket.BoolFieldSchema(field.Name, field.Description, false), true
+			return sdkTicket.BoolFieldSchema(field.Name, field.Name, false), true
 		case "Float":
-			return sdkTicket.NumberFieldSchema(field.Name, field.Description, false), true
+			return sdkTicket.NumberFieldSchema(field.Name, field.Name, false), true
 		case "Int":
-			return sdkTicket.NumberFieldSchema(field.Name, field.Description, false), true
+			return sdkTicket.NumberFieldSchema(field.Name, field.Name, false), true
 		case "JSON":
-			// JSON fields are currently internal to Linear
 			return nil, false
 		}
 	case "ENUM":
@@ -111,7 +114,7 @@ func getCustomFieldSchema(field linear.IssueField) (*v2.TicketCustomField, bool)
 		for i, v := range field.Type.EnumValues {
 			enums[i] = v.Name
 		}
-		return sdkTicket.PickMultipleStringsFieldSchema(field.Name, field.Description, false, enums), true
+		return sdkTicket.PickMultipleStringsFieldSchema(field.Name, field.Name, false, enums), true
 	case "LIST":
 		// TODO(johnallers): Implement LIST fields
 		return nil, false
