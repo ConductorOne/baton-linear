@@ -134,9 +134,9 @@ func getCustomFieldSchema(field linear.IssueField) (*v2.TicketCustomField, bool)
 		case "Boolean":
 			return sdkTicket.BoolFieldSchema(field.Name, field.Name, false), true
 		case "Float":
-			return sdkTicket.NumberFieldSchema(field.Name, field.Name, false), true
+			return sdkTicket.StringFieldSchema(field.Name, field.Name, false), true
 		case "Int":
-			return sdkTicket.NumberFieldSchema(field.Name, field.Name, false), true
+			return sdkTicket.StringFieldSchema(field.Name, field.Name, false), true
 		case "JSON", "DateTime", "TimelessDate":
 			return nil, false
 		}
