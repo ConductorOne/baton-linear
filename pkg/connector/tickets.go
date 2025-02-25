@@ -21,7 +21,21 @@ func (ln *Linear) CreateTicket(ctx context.Context, ticket *v2.Ticket, schema *v
 }
 
 func (ln *Linear) GetTicketSchema(ctx context.Context, schemaID string) (*v2.TicketSchema, annotations.Annotations, error) {
-	return nil, nil, fmt.Errorf("GetTicketSchema not implemented")
+	teams, _, _, _, err := ln.client.ListTeamWorkflowStates(ctx, linear.GetTeamsVars{TeamIds: []string{schemaID}, First: 2})
+	if err != nil {
+		return nil, nil, fmt.Errorf("baton-linear: failed to list team workflow states: %w", err)
+	}
+
+	if len(teams) != 1 {
+		return nil, nil, fmt.Errorf("baton-linear: expected 1 team, got %d", len(teams))
+	}
+
+	customFields, err := ln.getCustomFields(ctx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("baton-linear: failed to list custom fields: %w", err)
+	}
+
+	return ticketSchemaFromTeam(teams[0], customFields), nil, nil
 }
 
 func (ln *Linear) ListTicketSchemas(ctx context.Context, p *pagination.Token) ([]*v2.TicketSchema, string, annotations.Annotations, error) {
@@ -33,7 +47,7 @@ func (ln *Linear) ListTicketSchemas(ctx context.Context, p *pagination.Token) ([
 
 	// TODO(johnallers): Test with resourcePageSize == 1
 	// Linear Issues currently vary only by Workflow State per Team
-	teams, nextToken, _, rlData, err := ln.client.GetTeamsWorkflowStates(ctx, linear.GetTeamVars{After: bag.PageToken(), First: resourcePageSize})
+	teams, nextToken, _, rlData, err := ln.client.ListTeamWorkflowStates(ctx, linear.GetTeamsVars{After: bag.PageToken(), First: resourcePageSize})
 	annotations.WithRateLimiting(rlData)
 	if err != nil {
 		return nil, "", annotations, fmt.Errorf("baton-linear: failed to list teams: %w", err)
@@ -51,28 +65,33 @@ func (ln *Linear) ListTicketSchemas(ctx context.Context, p *pagination.Token) ([
 
 	var ret []*v2.TicketSchema
 	for _, team := range teams {
-		var statuses []*v2.TicketStatus
-		for _, state := range team.States.Nodes {
-			statuses = append(statuses, &v2.TicketStatus{
-				Id:          state.ID,
-				DisplayName: state.Name,
-			})
-		}
-		ret = append(ret, &v2.TicketSchema{
-			Id:          team.ID,
-			DisplayName: team.Name,
-			Statuses:    statuses,
-			Types: []*v2.TicketType{
-				{
-					Id:          "issue",
-					DisplayName: "Issue",
-				},
-			},
-			CustomFields: customFields,
-		})
+		ret = append(ret, ticketSchemaFromTeam(team, customFields))
 	}
 
 	return ret, pageToken, annotations, nil
+}
+
+func ticketSchemaFromTeam(team linear.Team, customFields map[string]*v2.TicketCustomField) *v2.TicketSchema {
+	var statuses []*v2.TicketStatus
+	for _, state := range team.States.Nodes {
+		statuses = append(statuses, &v2.TicketStatus{
+			Id:          state.ID,
+			DisplayName: state.Name,
+		})
+	}
+
+	return &v2.TicketSchema{
+		Id:          team.ID,
+		DisplayName: team.Name,
+		Statuses:    statuses,
+		Types: []*v2.TicketType{
+			{
+				Id:          "issue",
+				DisplayName: "Issue",
+			},
+		},
+		CustomFields: customFields,
+	}
 }
 
 func (ln *Linear) getCustomFields(ctx context.Context) (map[string]*v2.TicketCustomField, error) {

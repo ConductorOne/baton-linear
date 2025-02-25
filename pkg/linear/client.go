@@ -106,6 +106,12 @@ type GetTeamVars struct {
 	First  int    `json:"first,omitempty"`
 }
 
+type GetTeamsVars struct {
+	TeamIds []string `json:"teamIds,omitempty"`
+	After   string   `json:"after,omitempty"`
+	First   int      `json:"first,omitempty"`
+}
+
 type GetProjectVars struct {
 	First      int    `json:"first,omitempty"`
 	UsersAfter string `json:"usersAfter,omitempty"`
@@ -544,45 +550,44 @@ func (c *Client) GetTeamMemberships(ctx context.Context, getTeamVars GetTeamVars
 	return res.Data.Team.Memberships.Nodes, "", resp, rlData, nil
 }
 
-func (c *Client) GetTeamsWorkflowStates(ctx context.Context, getTeamVars GetTeamVars) ([]Team, string, *http.Response, *v2.RateLimitDescription, error) {
-	vars := GetTeamVars{TeamId: getTeamVars.TeamId, First: getTeamVars.First, After: ""}
-
-	if getTeamVars.After != "" {
-		vars.After = getTeamVars.After
-	}
-
-	// TODO(johnallers): Filter by teamId
-	query := `query TeamWorkflowStates($after: String, $first: Int) {
-				teams(after: $after, first: $first) {
+// ListTeamWorkflowStates returns workflow states for specific teams
+func (c *Client) ListTeamWorkflowStates(ctx context.Context, getTeamsVars GetTeamsVars) ([]Team, string, *http.Response, *v2.RateLimitDescription, error) {
+	query := `query TeamWorkflowStates($after: String, $first: Int, $teamIds: [ID!]) {
+		teams(after: $after, first: $first, filter: { id: { in: $teamIds } }) {
+			nodes {
+				id
+				name
+				states {
 					nodes {
 						id
 						name
-						states {
-							nodes {
-								id
-								name
-								color
-								type
-							}
-						}
-					}
-					pageInfo {
-						hasPreviousPage
-						hasNextPage
-						startCursor
-						endCursor
+						color
+						type
 					}
 				}
-			}`
+			}
+			pageInfo {
+				hasPreviousPage
+				hasNextPage
+				startCursor
+				endCursor
+			}
+		}
+	}`
+
 	b := map[string]interface{}{
 		"query":     query,
-		"variables": vars,
+		"variables": getTeamsVars,
 	}
 
 	var res GraphQLTeamsResponse
 	resp, rlData, err := c.doRequest(ctx, b, &res)
 	if err != nil {
 		return nil, "", resp, rlData, err
+	}
+
+	if res.Data.Teams.PageInfo.HasNextPage {
+		return res.Data.Teams.Nodes, res.Data.Teams.PageInfo.EndCursor, resp, rlData, nil
 	}
 
 	return res.Data.Teams.Nodes, "", resp, rlData, nil
