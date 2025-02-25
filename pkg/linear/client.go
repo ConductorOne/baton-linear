@@ -722,6 +722,48 @@ func (c *Client) CreateIssue(ctx context.Context, payload CreateIssuePayload) (*
 	return &res.Data.IssueCreate.Issue, nil
 }
 
+func (c *Client) GetIssue(ctx context.Context, issueId string) (*Issue, error) {
+	query := `query Issue($issueId: String!) {
+				issue(id: $issueId) {
+					id
+					title
+					description
+					state {
+						id
+						name
+					}
+					labels {
+						nodes {
+						id
+						name
+						}
+					}
+					createdAt
+					updatedAt
+					url
+				}
+			}`
+
+	b := map[string]interface{}{
+		"query":     query,
+		"variables": map[string]interface{}{"issueId": issueId},
+	}
+
+	var res struct {
+		Data struct {
+			Issue Issue `json:"issue"`
+		} `json:"data"`
+	}
+	resp, _, e := c.doRequest(ctx, b, &res)
+	if e != nil {
+		return nil, e
+	}
+
+	defer resp.Body.Close()
+
+	return &res.Data.Issue, nil
+}
+
 func (c *Client) doRequest(ctx context.Context, body interface{}, res interface{}) (*http.Response, *v2.RateLimitDescription, error) {
 	rlData := &v2.RateLimitDescription{}
 	options := []uhttp.RequestOption{

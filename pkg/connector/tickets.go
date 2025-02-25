@@ -15,7 +15,32 @@ import (
 )
 
 func (ln *Linear) GetTicket(ctx context.Context, ticketId string) (*v2.Ticket, annotations.Annotations, error) {
-	return nil, nil, fmt.Errorf("GetTicket not implemented")
+	issue, err := ln.client.GetIssue(ctx, ticketId)
+	if err != nil {
+		return nil, nil, fmt.Errorf("baton-linear: failed to get issue: %w", err)
+	}
+
+	return ticketFromIssue(issue), nil, nil
+}
+
+func ticketFromIssue(issue *linear.Issue) *v2.Ticket {
+	var labels []string
+	if issue.Labels.Nodes != nil {
+		for _, label := range issue.Labels.Nodes {
+			labels = append(labels, label.Name)
+		}
+	}
+
+	return &v2.Ticket{
+		Id:          issue.ID,
+		DisplayName: issue.Title,
+		Description: issue.Description,
+		Status:      &v2.TicketStatus{Id: issue.State.ID, DisplayName: issue.State.Name},
+		Labels:      labels,
+		Url:         issue.URL,
+		CreatedAt:   timestamppb.New(issue.CreatedAt),
+		UpdatedAt:   timestamppb.New(issue.UpdatedAt),
+	}
 }
 
 func (ln *Linear) CreateTicket(ctx context.Context, ticket *v2.Ticket, schema *v2.TicketSchema) (*v2.Ticket, annotations.Annotations, error) {
@@ -33,22 +58,7 @@ func (ln *Linear) CreateTicket(ctx context.Context, ticket *v2.Ticket, schema *v
 		return nil, nil, fmt.Errorf("baton-linear: failed to create issue: %w", err)
 	}
 
-	var labels []string
-	for _, label := range issue.Labels.Nodes {
-		labels = append(labels, label.Name)
-	}
-
-	ticketResp := &v2.Ticket{
-		Id:           issue.ID,
-		DisplayName:  issue.Title,
-		Description:  issue.Description,
-		Status:       &v2.TicketStatus{Id: issue.State.ID, DisplayName: issue.State.Name},
-		Labels:       labels,
-		Url:          issue.URL,
-		CreatedAt:    timestamppb.New(issue.CreatedAt),
-		UpdatedAt:    timestamppb.New(issue.UpdatedAt),
-		RequestedFor: ticket.RequestedFor,
-	}
+	ticketResp := ticketFromIssue(issue)
 
 	return ticketResp, nil, nil
 }
