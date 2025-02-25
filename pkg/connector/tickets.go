@@ -122,7 +122,7 @@ func getCustomFieldSchema(field linear.IssueField) (*v2.TicketCustomField, bool)
 	}
 
 	switch field.Name {
-	case "id", "title", "description", "assigneeId", "labelIds", "teamId", "createdAt", "completedAt":
+	case "id", "title", "description", "labelIds", "teamId", "createdAt", "completedAt":
 		return nil, false
 	}
 
