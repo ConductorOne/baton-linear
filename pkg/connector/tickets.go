@@ -120,47 +120,54 @@ func getCustomFieldSchema(field linear.IssueField) (*v2.TicketCustomField, bool)
 	if strings.HasPrefix(field.Description, "[Internal]") {
 		return nil, false
 	}
-
 	switch field.Name {
-	case "id", "title", "description", "labelIds", "teamId", "createdAt", "completedAt":
-		return nil, false
-	}
-
-	switch field.Type.Kind {
-	case "SCALAR":
-		switch field.Type.Name {
-		case "String":
-			return sdkTicket.StringFieldSchema(field.Name, field.Name, false), true
-		case "Boolean":
-			return sdkTicket.BoolFieldSchema(field.Name, field.Name, false), true
-		case "Float":
-			return sdkTicket.StringFieldSchema(field.Name, field.Name, false), true
-		case "Int":
-			return sdkTicket.StringFieldSchema(field.Name, field.Name, false), true
-		case "JSON", "DateTime", "TimelessDate":
+	case "priority":
+		objectValues := []*v2.TicketCustomFieldObjectValue{
+			{Id: "0", DisplayName: "No priority"},
+			{Id: "1", DisplayName: "Urgent"},
+			{Id: "2", DisplayName: "High"},
+			{Id: "3", DisplayName: "Normal"},
+			{Id: "4", DisplayName: "Low"},
+		}
+		return sdkTicket.PickObjectValueFieldSchema(field.Name, field.Name, false, objectValues), true
+	case "assigneeId", "createAsUser", "cycleId", "projectId", "projectMilestoneId", "stateId", "subscriberIds", "templateId":
+		switch field.Type.Kind {
+		case "SCALAR":
+			switch field.Type.Name {
+			case "String":
+				return sdkTicket.StringFieldSchema(field.Name, field.Name, false), true
+			case "Boolean":
+				return sdkTicket.BoolFieldSchema(field.Name, field.Name, false), true
+			case "Float":
+				return sdkTicket.StringFieldSchema(field.Name, field.Name, false), true
+			case "Int":
+				return sdkTicket.StringFieldSchema(field.Name, field.Name, false), true
+			case "JSON", "DateTime", "TimelessDate":
+				return nil, false
+			}
+		case "ENUM":
+			enums := make([]string, len(field.Type.EnumValues))
+			for i, v := range field.Type.EnumValues {
+				enums[i] = v.Name
+			}
+			return sdkTicket.PickMultipleStringsFieldSchema(field.Name, field.Name, false, enums), true
+		case "LIST":
 			return nil, false
-		}
-	case "ENUM":
-		enums := make([]string, len(field.Type.EnumValues))
-		for i, v := range field.Type.EnumValues {
-			enums[i] = v.Name
-		}
-		return sdkTicket.PickMultipleStringsFieldSchema(field.Name, field.Name, false, enums), true
-	case "LIST":
-		return nil, false
-	case "NON_NULL":
-		if field.Type.OfType != nil {
-			req, success := getCustomFieldSchema(linear.IssueField{
-				Name:        field.Name,
-				Description: field.Description,
-				Type:        *field.Type.OfType,
-			})
-			if success {
-				req.Required = true
-				return req, true
+		case "NON_NULL":
+			if field.Type.OfType != nil {
+				req, success := getCustomFieldSchema(linear.IssueField{
+					Name:        field.Name,
+					Description: field.Description,
+					Type:        *field.Type.OfType,
+				})
+				if success {
+					req.Required = true
+					return req, true
+				}
 			}
 		}
 	}
+
 	return nil, false
 }
 
