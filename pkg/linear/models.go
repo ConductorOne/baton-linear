@@ -1,5 +1,7 @@
 package linear
 
+import "time"
+
 type PageInfo struct {
 	EndCursor       string `json:"endCursor"`
 	HasNextPage     bool   `json:"hasNextPage"`
@@ -149,6 +151,25 @@ type WorkflowState struct {
 	Color    string       `json:"color"`
 	Type     WorkflowType `json:"type"`
 	Position float64      `json:"position"`
+}
+
+type Issue struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	State       struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	} `json:"state"`
+	Labels struct {
+		Nodes []struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		} `json:"nodes"`
+	} `json:"labels,omitempty"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+	URL       string    `json:"url"`
 }
 
 type IssueField struct {

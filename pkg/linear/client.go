@@ -125,6 +125,34 @@ type PaginationVars struct {
 	TeamsAfter string `json:"teamsAfter,omitempty"`
 }
 
+type FieldOption func(createIssuePayload *CreateIssuePayload)
+
+type CreateIssuePayload struct {
+	TeamId       string
+	Title        string
+	Description  string
+	LabelIds     []string
+	FieldOptions map[string]interface{}
+}
+
+func WithLabel(labelId string) FieldOption {
+	return func(createIssuePayload *CreateIssuePayload) {
+		if createIssuePayload.LabelIds == nil {
+			createIssuePayload.LabelIds = []string{}
+		}
+		createIssuePayload.LabelIds = append(createIssuePayload.LabelIds, labelId)
+	}
+}
+
+func WithCustomField(name string, value interface{}) FieldOption {
+	return func(createIssuePayload *CreateIssuePayload) {
+		if createIssuePayload.FieldOptions == nil {
+			createIssuePayload.FieldOptions = make(map[string]interface{})
+		}
+		createIssuePayload.FieldOptions[name] = value
+	}
+}
+
 // GetUsers returns all users from Linear organization.
 func (c *Client) GetUsers(ctx context.Context, getResourceVars GetResourcesVars) ([]User, string, *http.Response, *v2.RateLimitDescription, error) {
 	query := `query Users($after: String, $first: Int) {
@@ -629,6 +657,69 @@ func (c *Client) GetIssueFields(ctx context.Context) ([]IssueField, string, *htt
 	}
 
 	return res.Data.Type.InputFields, "", resp, rlData, nil
+}
+
+func (c *Client) CreateIssue(ctx context.Context, payload CreateIssuePayload) (*Issue, error) {
+	mutation := `mutation IssueCreate($input: IssueCreateInput!) {
+		issueCreate(input: $input) {
+		    issue {
+		      id
+		      title
+		      description
+		      state {
+		        id
+		        name
+		      }
+		      labels {
+		        nodes {
+		          id
+		          name
+		        }
+		      }
+		      createdAt
+		      updatedAt
+		      url
+		    }
+			success
+		}
+	}`
+
+	input := map[string]interface{}{
+		"teamId":      payload.TeamId,
+		"title":       payload.Title,
+		"description": payload.Description,
+	}
+	if len(payload.LabelIds) > 0 {
+		input["labelIds"] = payload.LabelIds
+	}
+	for key, value := range payload.FieldOptions {
+		input[key] = value
+	}
+	vars := map[string]interface{}{
+		"input": input,
+	}
+
+	b := map[string]interface{}{
+		"query":     mutation,
+		"variables": vars,
+	}
+
+	var res struct {
+		Data struct {
+			IssueCreate struct {
+				Success bool  `json:"success"`
+				Issue   Issue `json:"issue"`
+			} `json:"issueCreate"`
+		} `json:"data"`
+	}
+	resp, _, e := c.doRequest(ctx, b, &res)
+	if e != nil {
+		return nil, e
+	}
+
+	defer resp.Body.Close()
+
+	return &res.Data.IssueCreate.Issue, nil
 }
 
 func (c *Client) doRequest(ctx context.Context, body interface{}, res interface{}) (*http.Response, *v2.RateLimitDescription, error) {

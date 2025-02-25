@@ -11,6 +11,7 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 	sdkTicket "github.com/conductorone/baton-sdk/pkg/types/ticket"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func (ln *Linear) GetTicket(ctx context.Context, ticketId string) (*v2.Ticket, annotations.Annotations, error) {
@@ -18,7 +19,38 @@ func (ln *Linear) GetTicket(ctx context.Context, ticketId string) (*v2.Ticket, a
 }
 
 func (ln *Linear) CreateTicket(ctx context.Context, ticket *v2.Ticket, schema *v2.TicketSchema) (*v2.Ticket, annotations.Annotations, error) {
-	return nil, nil, fmt.Errorf("CreateTicket not implemented")
+	payload := linear.CreateIssuePayload{
+		TeamId:      schema.Id,
+		Title:       ticket.DisplayName,
+		Description: ticket.Description,
+	}
+
+	// TODO(johnallers) Add Labels
+	// TODO(johnallers) Add Custom Fields
+
+	issue, err := ln.client.CreateIssue(ctx, payload)
+	if err != nil {
+		return nil, nil, fmt.Errorf("baton-linear: failed to create issue: %w", err)
+	}
+
+	var labels []string
+	for _, label := range issue.Labels.Nodes {
+		labels = append(labels, label.Name)
+	}
+
+	ticketResp := &v2.Ticket{
+		Id:           issue.ID,
+		DisplayName:  issue.Title,
+		Description:  issue.Description,
+		Status:       &v2.TicketStatus{Id: issue.State.ID, DisplayName: issue.State.Name},
+		Labels:       labels,
+		Url:          issue.URL,
+		CreatedAt:    timestamppb.New(issue.CreatedAt),
+		UpdatedAt:    timestamppb.New(issue.UpdatedAt),
+		RequestedFor: ticket.RequestedFor,
+	}
+
+	return ticketResp, nil, nil
 }
 
 func (ln *Linear) GetTicketSchema(ctx context.Context, schemaID string) (*v2.TicketSchema, annotations.Annotations, error) {
