@@ -114,6 +114,12 @@ func getCustomFieldSchema(field linear.IssueField) (*v2.TicketCustomField, bool)
 	if strings.HasPrefix(field.Description, "[Internal]") {
 		return nil, false
 	}
+
+	switch field.Name {
+	case "id", "title", "description", "assigneeId", "labelIds", "teamId", "createdAt", "completedAt":
+		return nil, false
+	}
+
 	switch field.Type.Kind {
 	case "SCALAR":
 		switch field.Type.Name {
@@ -125,7 +131,7 @@ func getCustomFieldSchema(field linear.IssueField) (*v2.TicketCustomField, bool)
 			return sdkTicket.NumberFieldSchema(field.Name, field.Name, false), true
 		case "Int":
 			return sdkTicket.NumberFieldSchema(field.Name, field.Name, false), true
-		case "JSON":
+		case "JSON", "DateTime", "TimelessDate":
 			return nil, false
 		}
 	case "ENUM":
@@ -135,7 +141,6 @@ func getCustomFieldSchema(field linear.IssueField) (*v2.TicketCustomField, bool)
 		}
 		return sdkTicket.PickMultipleStringsFieldSchema(field.Name, field.Name, false, enums), true
 	case "LIST":
-		// TODO(johnallers): Implement LIST fields
 		return nil, false
 	case "NON_NULL":
 		if field.Type.OfType != nil {
