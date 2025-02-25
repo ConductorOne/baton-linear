@@ -3,6 +3,7 @@ package connector
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/conductorone/baton-linear/pkg/linear"
@@ -73,6 +74,11 @@ func (ln *Linear) ListTicketSchemas(ctx context.Context, p *pagination.Token) ([
 
 func ticketSchemaFromTeam(team linear.Team, customFields map[string]*v2.TicketCustomField) *v2.TicketSchema {
 	var statuses []*v2.TicketStatus
+
+	sort.Slice(team.States.Nodes, func(i, j int) bool {
+		return team.States.Nodes[i].Position < team.States.Nodes[j].Position
+	})
+
 	for _, state := range team.States.Nodes {
 		statuses = append(statuses, &v2.TicketStatus{
 			Id:          state.ID,

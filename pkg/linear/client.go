@@ -563,6 +563,7 @@ func (c *Client) ListTeamWorkflowStates(ctx context.Context, getTeamsVars GetTea
 						name
 						color
 						type
+						position
 					}
 				}
 			}

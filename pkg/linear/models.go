@@ -144,10 +144,11 @@ const (
 )
 
 type WorkflowState struct {
-	ID    string       `json:"id"`
-	Name  string       `json:"name"`
-	Color string       `json:"color"`
-	Type  WorkflowType `json:"type"`
+	ID       string       `json:"id"`
+	Name     string       `json:"name"`
+	Color    string       `json:"color"`
+	Type     WorkflowType `json:"type"`
+	Position float64      `json:"position"`
 }
 
 type IssueField struct {
