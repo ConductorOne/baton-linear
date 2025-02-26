@@ -70,10 +70,14 @@ func (ln *Linear) CreateTicket(ctx context.Context, ticket *v2.Ticket, schema *v
 		// TODO(johnallers): Need to convert other Int/Float values from String
 
 		if id == "priority" {
-			strVal, _ := val.(string)
-			intVal, _ := strconv.Atoi(strVal)
-			l.Info("Priority", zap.Any("val", val), zap.Int("intVal", intVal), zap.String("strVal", strVal))
-			val = intVal
+			if objVal, ok := val.(*v2.TicketCustomFieldObjectValue); ok {
+				intVal, err := strconv.Atoi(objVal.Id)
+				if err != nil {
+					return nil, nil, fmt.Errorf("baton-linear: failed to convert priority to int: %w", err)
+				}
+				val = intVal
+				l.Info("Priority", zap.Any("val", val), zap.Int("intVal", intVal), zap.Any("objVal", objVal.Id))
+			}
 		}
 		payload.FieldOptions[cf.Id] = val
 	}
