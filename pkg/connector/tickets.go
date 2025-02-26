@@ -79,7 +79,7 @@ func (ln *Linear) CreateTicket(ctx context.Context, ticket *v2.Ticket, schema *v
 
 	l.Debug("Ticket Labels", zap.Any("labels", ticket.Labels))
 
-	labelIds := make([]string, len(ticket.Labels))
+	labelIds := make([]string, 0, len(ticket.Labels))
 	for _, label := range ticket.Labels {
 		if label == "" {
 			continue
