@@ -622,7 +622,7 @@ func (c *Client) ListTeamWorkflowStates(ctx context.Context, getTeamsVars GetTea
 	return res.Data.Teams.Nodes, "", resp, rlData, nil
 }
 
-func (c *Client) GetIssueFields(ctx context.Context) ([]IssueField, string, *http.Response, *v2.RateLimitDescription, error) {
+func (c *Client) ListIssueFields(ctx context.Context) ([]IssueField, string, *http.Response, *v2.RateLimitDescription, error) {
 	query := `query IssueFields {
 				__type(name: "IssueCreateInput") {
 					inputFields(includeDeprecated: false) {

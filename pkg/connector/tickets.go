@@ -192,7 +192,7 @@ func ticketSchemaFromTeam(team linear.Team, customFields map[string]*v2.TicketCu
 }
 
 func (ln *Linear) getCustomFields(ctx context.Context) (map[string]*v2.TicketCustomField, error) {
-	fields, _, _, _, err := ln.client.GetIssueFields(ctx)
+	fields, _, _, _, err := ln.client.ListIssueFields(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("baton-linear: failed to list issue fields: %w", err)
 	}
