@@ -72,6 +72,7 @@ func (ln *Linear) CreateTicket(ctx context.Context, ticket *v2.Ticket, schema *v
 		if id == "priority" {
 			strVal, _ := val.(string)
 			intVal, _ := strconv.Atoi(strVal)
+			l.Info("Priority", zap.Any("val", val), zap.Int("intVal", intVal), zap.String("strVal", strVal))
 			val = intVal
 		}
 		payload.FieldOptions[cf.Id] = val
