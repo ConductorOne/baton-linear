@@ -9,6 +9,7 @@ import (
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/uhttp"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
+	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 )
 
@@ -659,6 +660,9 @@ func (c *Client) GetIssueFields(ctx context.Context) ([]IssueField, string, *htt
 }
 
 func (c *Client) CreateIssue(ctx context.Context, payload CreateIssuePayload) (*Issue, error) {
+	l := ctxzap.Extract(ctx)
+	l.Info("Creating issue", zap.Any("payload", payload))
+
 	mutation := `mutation IssueCreate($input: IssueCreateInput!) {
 		issueCreate(input: $input) {
 		    issue {
@@ -698,6 +702,8 @@ func (c *Client) CreateIssue(ctx context.Context, payload CreateIssuePayload) (*
 		"input": input,
 	}
 
+	l.Info("With Input", zap.Any("input", input))
+
 	b := map[string]interface{}{
 		"query":     mutation,
 		"variables": vars,
@@ -717,6 +723,8 @@ func (c *Client) CreateIssue(ctx context.Context, payload CreateIssuePayload) (*
 	}
 
 	defer resp.Body.Close()
+
+	l.Info("Response", zap.Any("response", res))
 
 	return &res.Data.IssueCreate.Issue, nil
 }
