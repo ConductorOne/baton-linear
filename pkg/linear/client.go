@@ -105,6 +105,14 @@ type GraphQLIssueLabelsResponse struct {
 	} `json:"data"`
 }
 
+type GraphQLIssuesResponse struct {
+	Data struct {
+		Issues struct {
+			Nodes []*Issue `json:"nodes"`
+		} `json:"issues"`
+	} `json:"data"`
+}
+
 type SuccessResponse struct {
 	Success bool `json:"success"`
 }
@@ -659,6 +667,21 @@ func (c *Client) ListIssueFields(ctx context.Context) ([]IssueField, string, *ht
 	return res.Data.Type.InputFields, "", resp, rlData, nil
 }
 
+func createIssuePayloadToInputMap(payload CreateIssuePayload) *map[string]interface{} {
+	input := map[string]interface{}{
+		"teamId":      payload.TeamId,
+		"title":       payload.Title,
+		"description": payload.Description,
+	}
+	if len(payload.LabelIds) > 0 {
+		input["labelIds"] = payload.LabelIds
+	}
+	for key, value := range payload.FieldOptions {
+		input[key] = value
+	}
+	return &input
+}
+
 func (c *Client) CreateIssue(ctx context.Context, payload CreateIssuePayload) (*Issue, error) {
 	l := ctxzap.Extract(ctx)
 	l.Debug("Creating issue", zap.Any("payload", payload))
@@ -687,17 +710,7 @@ func (c *Client) CreateIssue(ctx context.Context, payload CreateIssuePayload) (*
 		}
 	}`
 
-	input := map[string]interface{}{
-		"teamId":      payload.TeamId,
-		"title":       payload.Title,
-		"description": payload.Description,
-	}
-	if len(payload.LabelIds) > 0 {
-		input["labelIds"] = payload.LabelIds
-	}
-	for key, value := range payload.FieldOptions {
-		input[key] = value
-	}
+	input := createIssuePayloadToInputMap(payload)
 	vars := map[string]interface{}{
 		"input": input,
 	}
@@ -727,6 +740,59 @@ func (c *Client) CreateIssue(ctx context.Context, payload CreateIssuePayload) (*
 	}
 
 	return &res.Data.IssueCreate.Issue, nil
+}
+
+func (c *Client) BulkCreateIssues(ctx context.Context, payloads *[]CreateIssuePayload) (*[]Issue, error) {
+	query := `mutation IssueCreateBatch($input: IssueBatchCreateInput!) {
+		issueBatchCreate(input: $input) {
+			success
+			issues {
+				id
+				title
+				description
+				state {
+					id
+					name
+				}
+				labels {
+					nodes {
+						id
+						name
+					}
+				}
+				createdAt
+				updatedAt
+				url
+			}
+		}
+	}`
+
+	issues := make([]map[string]interface{}, len(*payloads))
+	for i, payload := range *payloads {
+		issues[i] = *createIssuePayloadToInputMap(payload)
+	}
+	input := map[string]interface{}{"issues": issues}
+	b := map[string]interface{}{
+		"query":     query,
+		"variables": map[string]interface{}{"input": input},
+	}
+
+	var res struct {
+		Data struct {
+			IssueBatchCreate struct {
+				Success bool     `json:"success"`
+				Issues  *[]Issue `json:"issues"`
+			} `json:"issueBatchCreate"`
+		} `json:"data"`
+	}
+	resp, _, e := c.doRequest(ctx, b, &res)
+	if e != nil {
+		return nil, e
+	}
+
+	defer resp.Body.Close()
+
+	return res.Data.IssueBatchCreate.Issues, nil
 }
 
 func (c *Client) GetIssue(ctx context.Context, issueId string) (*Issue, error) {
@@ -769,6 +835,52 @@ func (c *Client) GetIssue(ctx context.Context, issueId string) (*Issue, error) {
 	defer resp.Body.Close()
 
 	return &res.Data.Issue, nil
+}
+
+func (c *Client) ListIssuesById(ctx context.Context, issueIds []string) ([]*Issue, *http.Response, *v2.RateLimitDescription, error) {
+	if len(issueIds) == 0 {
+		return []*Issue{}, nil, nil, nil
+	}
+
+	query := `query Issues($issueIds: [ID!]) {
+		issues(filter: {
+			id: {
+				in: $issueIds
+			}
+		}) {
+			nodes {
+				id
+				title
+				description
+				state {
+					id
+					name
+				}
+				labels {
+					nodes {
+						id
+						name
+					}
+				}
+				createdAt
+				updatedAt
+				url
+			}
+		}
+	}`
+
+	b := map[string]interface{}{
+		"query":     query,
+		"variables": map[string]interface{}{"issueIds": issueIds},
+	}
+
+	var res GraphQLIssuesResponse
+	resp, rlData, err := c.doRequest(ctx, b, &res)
+	if err != nil {
+		return nil, resp, rlData, err
+	}
+
+	return res.Data.Issues.Nodes, resp, rlData, nil
 }
 
 func (c *Client) GetIssueLabel(ctx context.Context, labelName string) (*IssueLabel, *http.Response, *v2.RateLimitDescription, error) {

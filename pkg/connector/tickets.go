@@ -263,9 +263,82 @@ func getCustomFieldSchema(field linear.IssueField) (*v2.TicketCustomField, bool)
 }
 
 func (ln *Linear) BulkCreateTickets(ctx context.Context, request *v2.TicketsServiceBulkCreateTicketsRequest) (*v2.TicketsServiceBulkCreateTicketsResponse, error) {
-	return nil, fmt.Errorf("BulkCreateTickets not implemented")
+	if len(request.TicketRequests) == 0 {
+		return &v2.TicketsServiceBulkCreateTicketsResponse{
+			Tickets: []*v2.TicketsServiceCreateTicketResponse{},
+		}, nil
+	}
+
+	payloads := make([]linear.CreateIssuePayload, len(request.TicketRequests))
+	for i, tr := range request.TicketRequests {
+		req := tr.GetRequest()
+		schema := tr.GetSchema()
+
+		payloads[i] = linear.CreateIssuePayload{
+			TeamId:      schema.Id,
+			Title:       req.DisplayName,
+			Description: req.Description,
+		}
+
+		for _, cf := range schema.CustomFields {
+			val, err := sdkTicket.GetCustomFieldValueOrDefault(req.CustomFields[cf.Id])
+			if err != nil {
+				return nil, fmt.Errorf("baton-linear: failed to get custom field value: %w", err)
+			}
+
+			payloads[i].FieldOptions[cf.Id] = val
+		}
+
+		labelIds := make([]string, 0, len(req.Labels))
+		labelIds = append(labelIds, req.Labels...)
+		payloads[i].LabelIds = labelIds
+	}
+
+	issues, err := ln.client.BulkCreateIssues(ctx, &payloads)
+	if err != nil {
+		return nil, fmt.Errorf("baton-linear: failed to bulk create issues: %w", err)
+	}
+
+	responses := make([]*v2.TicketsServiceCreateTicketResponse, len(*issues))
+	for i, issue := range *issues {
+		responses[i] = &v2.TicketsServiceCreateTicketResponse{
+			Ticket: ticketFromIssue(&issue),
+		}
+	}
+
+	return &v2.TicketsServiceBulkCreateTicketsResponse{
+		Tickets: responses,
+	}, nil
 }
 
 func (ln *Linear) BulkGetTickets(ctx context.Context, request *v2.TicketsServiceBulkGetTicketsRequest) (*v2.TicketsServiceBulkGetTicketsResponse, error) {
-	return nil, fmt.Errorf("BulkGetTickets not implemented")
+	if len(request.TicketRequests) == 0 {
+		return &v2.TicketsServiceBulkGetTicketsResponse{
+			Tickets: []*v2.TicketsServiceGetTicketResponse{},
+		}, nil
+	}
+
+	// Extract ticket IDs from the request
+	ticketIds := make([]string, 0, len(request.TicketRequests))
+	for _, req := range request.TicketRequests {
+		ticketIds = append(ticketIds, req.Id)
+	}
+
+	// Query the issues
+	issues, _, _, err := ln.client.ListIssuesById(ctx, ticketIds)
+	if err != nil {
+		return nil, fmt.Errorf("baton-linear: failed to query issues: %w", err)
+	}
+
+	// Create response
+	responses := make([]*v2.TicketsServiceGetTicketResponse, 0, len(issues))
+	for _, issue := range issues {
+		responses = append(responses, &v2.TicketsServiceGetTicketResponse{
+			Ticket: ticketFromIssue(issue),
+		})
+	}
+
+	return &v2.TicketsServiceBulkGetTicketsResponse{
+		Tickets: responses,
+	}, nil
 }
