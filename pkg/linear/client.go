@@ -702,8 +702,6 @@ func (c *Client) CreateIssue(ctx context.Context, payload CreateIssuePayload) (*
 		"input": input,
 	}
 
-	l.Debug("With Input", zap.Any("input", input))
-
 	b := map[string]interface{}{
 		"query":     mutation,
 		"variables": vars,

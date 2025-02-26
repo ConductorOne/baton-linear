@@ -12,8 +12,6 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 	sdkTicket "github.com/conductorone/baton-sdk/pkg/types/ticket"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
-	"go.uber.org/zap"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -47,8 +45,6 @@ func ticketFromIssue(issue *linear.Issue) *v2.Ticket {
 }
 
 func (ln *Linear) CreateTicket(ctx context.Context, ticket *v2.Ticket, schema *v2.TicketSchema) (*v2.Ticket, annotations.Annotations, error) {
-	l := ctxzap.Extract(ctx)
-
 	payload := linear.CreateIssuePayload{
 		TeamId:      schema.Id,
 		Title:       ticket.DisplayName,
@@ -76,16 +72,15 @@ func (ln *Linear) CreateTicket(ctx context.Context, ticket *v2.Ticket, schema *v
 					return nil, nil, fmt.Errorf("baton-linear: failed to convert priority to int: %w", err)
 				}
 				val = intVal
-				l.Info("Priority", zap.Any("val", val), zap.Int("intVal", intVal), zap.Any("objVal", objVal.Id))
 			}
 		}
+
 		payload.FieldOptions[cf.Id] = val
 	}
 
-	l.Debug("Ticket Labels", zap.Any("labels", ticket.Labels))
-
 	labelIds := make([]string, 0, len(ticket.Labels))
 	for _, label := range ticket.Labels {
+		// Workaround issue where an empty label exists in ticket.Labels
 		if label == "" {
 			continue
 		}
@@ -95,15 +90,11 @@ func (ln *Linear) CreateTicket(ctx context.Context, ticket *v2.Ticket, schema *v
 			return nil, nil, fmt.Errorf("baton-linear: failed to get issue label: %w", err)
 		}
 
-		l.Debug("Issue Label", zap.Any("issueLabel", issueLabel))
-
 		if issueLabel == nil {
 			issueLabel, _, _, err = ln.client.CreateIssueLabel(ctx, label)
 			if err != nil {
 				return nil, nil, fmt.Errorf("baton-linear: failed to create issue label: %w", err)
 			}
-
-			l.Debug("Created Issue Label", zap.Any("issueLabel", issueLabel))
 		}
 
 		labelIds = append(labelIds, issueLabel.ID)
