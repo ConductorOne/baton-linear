@@ -96,6 +96,14 @@ type GraphQLViewerResponse struct {
 	} `json:"data"`
 }
 
+type GraphQLIssueLabelsResponse struct {
+	Data struct {
+		IssueLabels struct {
+			Nodes []IssueLabel `json:"nodes"`
+		} `json:"issueLabels"`
+	} `json:"data"`
+}
+
 type SuccessResponse struct {
 	Success bool `json:"success"`
 }
@@ -133,15 +141,6 @@ type CreateIssuePayload struct {
 	Description  string
 	LabelIds     []string
 	FieldOptions map[string]interface{}
-}
-
-func WithLabel(labelId string) FieldOption {
-	return func(createIssuePayload *CreateIssuePayload) {
-		if createIssuePayload.LabelIds == nil {
-			createIssuePayload.LabelIds = []string{}
-		}
-		createIssuePayload.LabelIds = append(createIssuePayload.LabelIds, labelId)
-	}
 }
 
 func WithCustomField(name string, value interface{}) FieldOption {
@@ -762,6 +761,78 @@ func (c *Client) GetIssue(ctx context.Context, issueId string) (*Issue, error) {
 	defer resp.Body.Close()
 
 	return &res.Data.Issue, nil
+}
+
+func (c *Client) GetIssueLabel(ctx context.Context, labelName string) (*IssueLabel, *http.Response, *v2.RateLimitDescription, error) {
+	query := `query IssueLabel($labelName: String!) {
+		issueLabels(filter: {
+			name: {
+				eq: $labelName
+			}
+		}) {
+			nodes {
+				id
+				name
+			}
+		}
+	}`
+
+	b := map[string]interface{}{
+		"query":     query,
+		"variables": map[string]interface{}{"labelName": labelName},
+	}
+
+	var res GraphQLIssueLabelsResponse
+	resp, rlData, err := c.doRequest(ctx, b, &res)
+	if err != nil {
+		return nil, resp, rlData, err
+	}
+
+	if len(res.Data.IssueLabels.Nodes) == 0 {
+		return nil, resp, rlData, nil
+	}
+
+	return &res.Data.IssueLabels.Nodes[0], resp, rlData, nil
+}
+
+func (c *Client) CreateIssueLabel(ctx context.Context, labelName string) (*IssueLabel, *http.Response, *v2.RateLimitDescription, error) {
+	mutation := `mutation IssueLabelCreate($input: IssueLabelCreateInput!) {
+		issueLabelCreate(input: $input) {
+			success
+			issueLabel {
+				id
+				name	
+			}
+		}
+	}`
+
+	vars := map[string]interface{}{
+		"input": map[string]interface{}{
+			"name": labelName,
+		},
+	}
+
+	b := map[string]interface{}{
+		"query":     mutation,
+		"variables": vars,
+	}
+
+	var res struct {
+		Data struct {
+			IssueLabelCreate struct {
+				Success    bool       `json:"success"`
+				IssueLabel IssueLabel `json:"issueLabel"`
+			} `json:"issueLabelCreate"`
+		} `json:"data"`
+	}
+	resp, rlData, e := c.doRequest(ctx, b, &res)
+	if e != nil {
+		return nil, resp, rlData, e
+	}
+
+	defer resp.Body.Close()
+
+	return &res.Data.IssueLabelCreate.IssueLabel, resp, rlData, nil
 }
 
 func (c *Client) doRequest(ctx context.Context, body interface{}, res interface{}) (*http.Response, *v2.RateLimitDescription, error) {

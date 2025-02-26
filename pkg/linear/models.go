@@ -189,3 +189,8 @@ type IssueFieldType struct {
 type IssueFieldEnumValue struct {
 	Name string `json:"name"`
 }
+
+type IssueLabel struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}

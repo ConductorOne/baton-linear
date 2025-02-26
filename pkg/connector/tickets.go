@@ -50,7 +50,27 @@ func (ln *Linear) CreateTicket(ctx context.Context, ticket *v2.Ticket, schema *v
 		Description: ticket.Description,
 	}
 
-	// TODO(johnallers) Add Labels
+	if len(ticket.Labels) > 0 {
+		labelIds := make([]string, len(ticket.Labels))
+		for _, label := range ticket.Labels {
+			issueLabel, _, _, err := ln.client.GetIssueLabel(ctx, label)
+			if err != nil {
+				return nil, nil, fmt.Errorf("baton-linear: failed to get issue label: %w", err)
+			}
+
+			if issueLabel == nil {
+				issueLabel, _, _, err = ln.client.CreateIssueLabel(ctx, label)
+				if err != nil {
+					return nil, nil, fmt.Errorf("baton-linear: failed to create issue label: %w", err)
+				}
+			}
+
+			labelIds = append(labelIds, issueLabel.ID)
+		}
+
+		payload.LabelIds = labelIds
+	}
+
 	// TODO(johnallers) Add Custom Fields
 
 	issue, err := ln.client.CreateIssue(ctx, payload)
