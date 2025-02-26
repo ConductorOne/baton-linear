@@ -331,10 +331,10 @@ func (ln *Linear) BulkGetTickets(ctx context.Context, request *v2.TicketsService
 	}
 
 	// Create response
-	responses := make([]*v2.TicketsServiceGetTicketResponse, 0, len(issues))
-	for _, issue := range issues {
+	responses := make([]*v2.TicketsServiceGetTicketResponse, 0, len(*issues))
+	for _, issue := range *issues {
 		responses = append(responses, &v2.TicketsServiceGetTicketResponse{
-			Ticket: ticketFromIssue(issue),
+			Ticket: ticketFromIssue(&issue),
 		})
 	}
 

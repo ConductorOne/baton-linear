@@ -108,7 +108,7 @@ type GraphQLIssueLabelsResponse struct {
 type GraphQLIssuesResponse struct {
 	Data struct {
 		Issues struct {
-			Nodes []*Issue `json:"nodes"`
+			Nodes []Issue `json:"nodes"`
 		} `json:"issues"`
 	} `json:"data"`
 }
@@ -150,15 +150,6 @@ type CreateIssuePayload struct {
 	Description  string
 	LabelIds     []string
 	FieldOptions map[string]interface{}
-}
-
-func WithCustomField(name string, value interface{}) FieldOption {
-	return func(createIssuePayload *CreateIssuePayload) {
-		if createIssuePayload.FieldOptions == nil {
-			createIssuePayload.FieldOptions = make(map[string]interface{})
-		}
-		createIssuePayload.FieldOptions[name] = value
-	}
 }
 
 // GetUsers returns all users from Linear organization.
@@ -837,9 +828,9 @@ func (c *Client) GetIssue(ctx context.Context, issueId string) (*Issue, error) {
 	return &res.Data.Issue, nil
 }
 
-func (c *Client) ListIssuesById(ctx context.Context, issueIds []string) ([]*Issue, *http.Response, *v2.RateLimitDescription, error) {
+func (c *Client) ListIssuesById(ctx context.Context, issueIds []string) (*[]Issue, *http.Response, *v2.RateLimitDescription, error) {
 	if len(issueIds) == 0 {
-		return []*Issue{}, nil, nil, nil
+		return &[]Issue{}, nil, nil, nil
 	}
 
 	query := `query Issues($issueIds: [ID!]) {
@@ -880,7 +871,7 @@ func (c *Client) ListIssuesById(ctx context.Context, issueIds []string) ([]*Issu
 		return nil, resp, rlData, err
 	}
 
-	return res.Data.Issues.Nodes, resp, rlData, nil
+	return &res.Data.Issues.Nodes, resp, rlData, nil
 }
 
 func (c *Client) GetIssueLabel(ctx context.Context, labelName string) (*IssueLabel, *http.Response, *v2.RateLimitDescription, error) {
