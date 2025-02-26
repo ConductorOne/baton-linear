@@ -50,28 +50,40 @@ func (ln *Linear) CreateTicket(ctx context.Context, ticket *v2.Ticket, schema *v
 		Description: ticket.Description,
 	}
 
-	if len(ticket.Labels) > 0 {
-		labelIds := make([]string, len(ticket.Labels))
-		for _, label := range ticket.Labels {
-			issueLabel, _, _, err := ln.client.GetIssueLabel(ctx, label)
-			if err != nil {
-				return nil, nil, fmt.Errorf("baton-linear: failed to get issue label: %w", err)
-			}
-
-			if issueLabel == nil {
-				issueLabel, _, _, err = ln.client.CreateIssueLabel(ctx, label)
-				if err != nil {
-					return nil, nil, fmt.Errorf("baton-linear: failed to create issue label: %w", err)
-				}
-			}
-
-			labelIds = append(labelIds, issueLabel.ID)
+	ticketFields := ticket.GetCustomFields()
+	payload.FieldOptions = make(map[string]interface{})
+	for id, cf := range schema.CustomFields {
+		val, err := sdkTicket.GetCustomFieldValueOrDefault(ticketFields[id])
+		if err != nil {
+			return nil, nil, err
 		}
 
-		payload.LabelIds = labelIds
+		if val == nil {
+			continue
+		}
+
+		// TODO(johnallers): May need to convert String to Int/Float
+		payload.FieldOptions[cf.Id] = val
 	}
 
-	// TODO(johnallers) Add Custom Fields
+	labelIds := make([]string, len(ticket.Labels))
+	for _, label := range ticket.Labels {
+		issueLabel, _, _, err := ln.client.GetIssueLabel(ctx, label)
+		if err != nil {
+			return nil, nil, fmt.Errorf("baton-linear: failed to get issue label: %w", err)
+		}
+
+		if issueLabel == nil {
+			issueLabel, _, _, err = ln.client.CreateIssueLabel(ctx, label)
+			if err != nil {
+				return nil, nil, fmt.Errorf("baton-linear: failed to create issue label: %w", err)
+			}
+		}
+
+		labelIds = append(labelIds, issueLabel.ID)
+	}
+
+	payload.LabelIds = labelIds
 
 	issue, err := ln.client.CreateIssue(ctx, payload)
 	if err != nil {
