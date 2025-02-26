@@ -81,6 +81,10 @@ func (ln *Linear) CreateTicket(ctx context.Context, ticket *v2.Ticket, schema *v
 
 	labelIds := make([]string, len(ticket.Labels))
 	for _, label := range ticket.Labels {
+		if label == "" {
+			continue
+		}
+
 		issueLabel, _, _, err := ln.client.GetIssueLabel(ctx, label)
 		if err != nil {
 			return nil, nil, fmt.Errorf("baton-linear: failed to get issue label: %w", err)
