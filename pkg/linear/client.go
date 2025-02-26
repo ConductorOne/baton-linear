@@ -661,7 +661,7 @@ func (c *Client) GetIssueFields(ctx context.Context) ([]IssueField, string, *htt
 
 func (c *Client) CreateIssue(ctx context.Context, payload CreateIssuePayload) (*Issue, error) {
 	l := ctxzap.Extract(ctx)
-	l.Info("Creating issue", zap.Any("payload", payload))
+	l.Debug("Creating issue", zap.Any("payload", payload))
 
 	mutation := `mutation IssueCreate($input: IssueCreateInput!) {
 		issueCreate(input: $input) {
@@ -702,7 +702,7 @@ func (c *Client) CreateIssue(ctx context.Context, payload CreateIssuePayload) (*
 		"input": input,
 	}
 
-	l.Info("With Input", zap.Any("input", input))
+	l.Debug("With Input", zap.Any("input", input))
 
 	b := map[string]interface{}{
 		"query":     mutation,
@@ -724,7 +724,9 @@ func (c *Client) CreateIssue(ctx context.Context, payload CreateIssuePayload) (*
 
 	defer resp.Body.Close()
 
-	l.Info("Response", zap.Any("response", res))
+	if !res.Data.IssueCreate.Success {
+		return nil, fmt.Errorf("failed to create issue")
+	}
 
 	return &res.Data.IssueCreate.Issue, nil
 }
@@ -839,6 +841,10 @@ func (c *Client) CreateIssueLabel(ctx context.Context, labelName string) (*Issue
 	}
 
 	defer resp.Body.Close()
+
+	if !res.Data.IssueLabelCreate.Success {
+		return nil, resp, rlData, fmt.Errorf("failed to create issue label")
+	}
 
 	return &res.Data.IssueLabelCreate.IssueLabel, resp, rlData, nil
 }
