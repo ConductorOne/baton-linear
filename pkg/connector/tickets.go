@@ -78,7 +78,7 @@ func (ln *Linear) CreateTicket(ctx context.Context, ticket *v2.Ticket, schema *v
 		payload.FieldOptions[cf.Id] = val
 	}
 
-	labelIds := make([]string, 0, len(ticket.Labels))
+	labelIDs := make([]string, 0, len(ticket.Labels))
 	for _, label := range ticket.Labels {
 		// Workaround issue where an empty label exists in ticket.Labels
 		if label == "" {
@@ -97,10 +97,10 @@ func (ln *Linear) CreateTicket(ctx context.Context, ticket *v2.Ticket, schema *v
 			}
 		}
 
-		labelIds = append(labelIds, issueLabel.ID)
+		labelIDs = append(labelIDs, issueLabel.ID)
 	}
 
-	payload.LabelIds = labelIds
+	payload.LabelIDs = labelIDs
 
 	issue, err := ln.client.CreateIssue(ctx, payload)
 	if err != nil {
@@ -113,7 +113,7 @@ func (ln *Linear) CreateTicket(ctx context.Context, ticket *v2.Ticket, schema *v
 }
 
 func (ln *Linear) GetTicketSchema(ctx context.Context, schemaID string) (*v2.TicketSchema, annotations.Annotations, error) {
-	teams, _, _, _, err := ln.client.ListTeamWorkflowStates(ctx, linear.GetTeamsVars{TeamIds: []string{schemaID}, First: 2})
+	teams, _, _, _, err := ln.client.ListTeamWorkflowStates(ctx, linear.GetTeamsVars{TeamIDs: []string{schemaID}, First: 2})
 	if err != nil {
 		return nil, nil, fmt.Errorf("baton-linear: failed to list team workflow states: %w", err)
 	}
@@ -289,9 +289,9 @@ func (ln *Linear) BulkCreateTickets(ctx context.Context, request *v2.TicketsServ
 			payloads[i].FieldOptions[cf.Id] = val
 		}
 
-		labelIds := make([]string, 0, len(req.Labels))
-		labelIds = append(labelIds, req.Labels...)
-		payloads[i].LabelIds = labelIds
+		labelIDs := make([]string, 0, len(req.Labels))
+		labelIDs = append(labelIDs, req.Labels...)
+		payloads[i].LabelIDs = labelIDs
 	}
 
 	issues, err := ln.client.BulkCreateIssues(ctx, &payloads)
@@ -319,13 +319,13 @@ func (ln *Linear) BulkGetTickets(ctx context.Context, request *v2.TicketsService
 	}
 
 	// Extract ticket IDs from the request
-	ticketIds := make([]string, 0, len(request.TicketRequests))
+	ticketIDs := make([]string, 0, len(request.TicketRequests))
 	for _, req := range request.TicketRequests {
-		ticketIds = append(ticketIds, req.Id)
+		ticketIDs = append(ticketIDs, req.Id)
 	}
 
 	// Query the issues
-	issues, _, _, err := ln.client.ListIssuesById(ctx, ticketIds)
+	issues, _, _, err := ln.client.ListIssuesByIDs(ctx, ticketIDs)
 	if err != nil {
 		return nil, fmt.Errorf("baton-linear: failed to query issues: %w", err)
 	}

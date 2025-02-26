@@ -124,7 +124,7 @@ type GetTeamVars struct {
 }
 
 type GetTeamsVars struct {
-	TeamIds []string `json:"teamIds,omitempty"`
+	TeamIDs []string `json:"teamIds,omitempty"`
 	After   string   `json:"after,omitempty"`
 	First   int      `json:"first,omitempty"`
 }
@@ -148,7 +148,7 @@ type CreateIssuePayload struct {
 	TeamId       string
 	Title        string
 	Description  string
-	LabelIds     []string
+	LabelIDs     []string
 	FieldOptions map[string]interface{}
 }
 
@@ -577,7 +577,7 @@ func (c *Client) GetTeamMemberships(ctx context.Context, getTeamVars GetTeamVars
 	return res.Data.Team.Memberships.Nodes, "", resp, rlData, nil
 }
 
-// ListTeamWorkflowStates returns workflow states for specific teams
+// ListTeamWorkflowStates returns workflow states for specific teams.
 func (c *Client) ListTeamWorkflowStates(ctx context.Context, getTeamsVars GetTeamsVars) ([]Team, string, *http.Response, *v2.RateLimitDescription, error) {
 	query := `query TeamWorkflowStates($after: String, $first: Int, $teamIds: [ID!]) {
 		teams(after: $after, first: $first, filter: { id: { in: $teamIds } }) {
@@ -664,8 +664,8 @@ func createIssuePayloadToInputMap(payload CreateIssuePayload) *map[string]interf
 		"title":       payload.Title,
 		"description": payload.Description,
 	}
-	if len(payload.LabelIds) > 0 {
-		input["labelIds"] = payload.LabelIds
+	if len(payload.LabelIDs) > 0 {
+		input["labelIds"] = payload.LabelIDs
 	}
 	for key, value := range payload.FieldOptions {
 		input[key] = value
@@ -828,8 +828,8 @@ func (c *Client) GetIssue(ctx context.Context, issueId string) (*Issue, error) {
 	return &res.Data.Issue, nil
 }
 
-func (c *Client) ListIssuesById(ctx context.Context, issueIds []string) (*[]Issue, *http.Response, *v2.RateLimitDescription, error) {
-	if len(issueIds) == 0 {
+func (c *Client) ListIssuesByIDs(ctx context.Context, issueIDs []string) (*[]Issue, *http.Response, *v2.RateLimitDescription, error) {
+	if len(issueIDs) == 0 {
 		return &[]Issue{}, nil, nil, nil
 	}
 
@@ -862,7 +862,7 @@ func (c *Client) ListIssuesById(ctx context.Context, issueIds []string) (*[]Issu
 
 	b := map[string]interface{}{
 		"query":     query,
-		"variables": map[string]interface{}{"issueIds": issueIds},
+		"variables": map[string]interface{}{"issueIds": issueIDs},
 	}
 
 	var res GraphQLIssuesResponse
