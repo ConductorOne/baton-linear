@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/conductorone/baton-linear/pkg/linear"
@@ -62,7 +63,13 @@ func (ln *Linear) CreateTicket(ctx context.Context, ticket *v2.Ticket, schema *v
 			continue
 		}
 
-		// TODO(johnallers): May need to convert String to Int/Float
+		// TODO(johnallers): Need to convert other Int/Float values from String
+
+		if id == "priority" {
+			strVal, _ := val.(string)
+			intVal, _ := strconv.Atoi(strVal)
+			val = intVal
+		}
 		payload.FieldOptions[cf.Id] = val
 	}
 
@@ -212,9 +219,9 @@ func getCustomFieldSchema(field linear.IssueField) (*v2.TicketCustomField, bool)
 				return sdkTicket.StringFieldSchema(field.Name, field.Name, false), true
 			case "Boolean":
 				return sdkTicket.BoolFieldSchema(field.Name, field.Name, false), true
-			case "Float":
-				return sdkTicket.StringFieldSchema(field.Name, field.Name, false), true
-			case "Int":
+			case "Float", "Int":
+				// At this time, NumberFieldSchema only supports Float and does not render properly in the UI.
+				// These need to be converted from String before being sent to Linear.
 				return sdkTicket.StringFieldSchema(field.Name, field.Name, false), true
 			case "JSON", "DateTime", "TimelessDate":
 				return nil, false
