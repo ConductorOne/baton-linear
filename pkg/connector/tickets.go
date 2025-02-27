@@ -22,7 +22,6 @@ func (ln *Linear) GetTicket(ctx context.Context, ticketId string) (*v2.Ticket, a
 	if err != nil {
 		return nil, nil, fmt.Errorf("baton-linear: failed to get issue: %w", err)
 	}
-
 	return ticketFromIssue(issue), nil, nil
 }
 
@@ -33,7 +32,6 @@ func ticketFromIssue(issue *linear.Issue) *v2.Ticket {
 			labels = append(labels, label.Name)
 		}
 	}
-
 	return &v2.Ticket{
 		Id:          issue.ID,
 		DisplayName: issue.Title,
@@ -60,13 +58,10 @@ func (ln *Linear) createIssuePayloadFromTicket(ctx context.Context, ticket *v2.T
 		if err != nil {
 			return nil, err
 		}
-
 		if val == nil {
 			continue
 		}
-
-		// TODO(johnallers): Need to convert other Int/Float values from String
-
+		// TODO(johnallers): Need to convert Int/Float fields from String
 		if id == "priority" {
 			if objVal, ok := val.(*v2.TicketCustomFieldObjectValue); ok {
 				intVal, err := strconv.Atoi(objVal.Id)
@@ -76,29 +71,25 @@ func (ln *Linear) createIssuePayloadFromTicket(ctx context.Context, ticket *v2.T
 				val = intVal
 			}
 		}
-
 		payload.FieldOptions[cf.Id] = val
 	}
 
 	labelIDs := make([]string, 0, len(ticket.Labels))
 	for _, label := range ticket.Labels {
-		// Workaround issue where an empty label exists in ticket.Labels
+		// Workaround issue where the ticket may have an empty label
 		if label == "" {
 			continue
 		}
-
 		issueLabel, _, _, err := ln.client.GetIssueLabel(ctx, label)
 		if err != nil {
 			return nil, fmt.Errorf("baton-linear: failed to get issue label: %w", err)
 		}
-
 		if issueLabel == nil {
 			issueLabel, _, _, err = ln.client.CreateIssueLabel(ctx, label)
 			if err != nil {
 				return nil, fmt.Errorf("baton-linear: failed to create issue label: %w", err)
 			}
 		}
-
 		labelIDs = append(labelIDs, issueLabel.ID)
 	}
 
@@ -108,7 +99,6 @@ func (ln *Linear) createIssuePayloadFromTicket(ctx context.Context, ticket *v2.T
 
 func (ln *Linear) CreateTicket(ctx context.Context, ticket *v2.Ticket, schema *v2.TicketSchema) (*v2.Ticket, annotations.Annotations, error) {
 	l := ctxzap.Extract(ctx)
-
 	l.Info("Creating ticket", zap.Any("ticket", ticket))
 
 	payload, err := ln.createIssuePayloadFromTicket(ctx, ticket, schema)
@@ -122,7 +112,6 @@ func (ln *Linear) CreateTicket(ctx context.Context, ticket *v2.Ticket, schema *v
 	}
 
 	ticketResp := ticketFromIssue(issue)
-
 	return ticketResp, nil, nil
 }
 
@@ -131,19 +120,19 @@ func (ln *Linear) GetTicketSchema(ctx context.Context, schemaID string) (*v2.Tic
 	if err != nil {
 		return nil, nil, fmt.Errorf("baton-linear: failed to list team workflow states: %w", err)
 	}
-
 	if len(teams) != 1 {
 		return nil, nil, fmt.Errorf("baton-linear: expected 1 team, got %d", len(teams))
 	}
-
 	customFields, err := ln.getCustomFields(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("baton-linear: failed to list custom fields: %w", err)
 	}
-
 	return ticketSchemaFromTeam(teams[0], customFields), nil, nil
 }
 
+// ListTicketSchemas lists all the ticket schemas for Linear Issues.
+//
+// Linear Issues currently vary only by Workflow State per Team.
 func (ln *Linear) ListTicketSchemas(ctx context.Context, p *pagination.Token) ([]*v2.TicketSchema, string, annotations.Annotations, error) {
 	var annotations annotations.Annotations
 	bag, err := parsePageToken(p.Token, &v2.ResourceId{ResourceType: resourceTypeTeam.Id})
@@ -151,8 +140,6 @@ func (ln *Linear) ListTicketSchemas(ctx context.Context, p *pagination.Token) ([
 		return nil, "", nil, err
 	}
 
-	// TODO(johnallers): Test with resourcePageSize == 1
-	// Linear Issues currently vary only by Workflow State per Team
 	teams, nextToken, _, rlData, err := ln.client.ListTeamWorkflowStates(ctx, linear.GetTeamsVars{After: bag.PageToken(), First: resourcePageSize})
 	annotations.WithRateLimiting(rlData)
 	if err != nil {
@@ -277,9 +264,6 @@ func getCustomFieldSchema(field linear.IssueField) (*v2.TicketCustomField, bool)
 }
 
 func (ln *Linear) BulkCreateTickets(ctx context.Context, request *v2.TicketsServiceBulkCreateTicketsRequest) (*v2.TicketsServiceBulkCreateTicketsResponse, error) {
-	l := ctxzap.Extract(ctx)
-	l.Info("Bulk creating tickets", zap.Any("request", request))
-
 	tickets := make([]*v2.TicketsServiceCreateTicketResponse, 0)
 	for _, tr := range request.GetTicketRequests() {
 		reqBody := tr.GetRequest()
