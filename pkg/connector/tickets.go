@@ -107,6 +107,10 @@ func (ln *Linear) createIssuePayloadFromTicket(ctx context.Context, ticket *v2.T
 }
 
 func (ln *Linear) CreateTicket(ctx context.Context, ticket *v2.Ticket, schema *v2.TicketSchema) (*v2.Ticket, annotations.Annotations, error) {
+	l := ctxzap.Extract(ctx)
+
+	l.Info("Creating ticket", zap.Any("ticket", ticket))
+
 	payload, err := ln.createIssuePayloadFromTicket(ctx, ticket, schema)
 	if err != nil {
 		return nil, nil, err
