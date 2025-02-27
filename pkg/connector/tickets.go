@@ -12,6 +12,8 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 	sdkTicket "github.com/conductorone/baton-sdk/pkg/types/ticket"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
+	"go.uber.org/zap"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -271,6 +273,10 @@ func getCustomFieldSchema(field linear.IssueField) (*v2.TicketCustomField, bool)
 }
 
 func (ln *Linear) BulkCreateTickets(ctx context.Context, request *v2.TicketsServiceBulkCreateTicketsRequest) (*v2.TicketsServiceBulkCreateTicketsResponse, error) {
+	l := ctxzap.Extract(ctx)
+
+	l.Info("Bulk creating tickets", zap.Any("request", request))
+
 	if len(request.TicketRequests) == 0 {
 		return &v2.TicketsServiceBulkCreateTicketsResponse{
 			Tickets: []*v2.TicketsServiceCreateTicketResponse{},
@@ -294,13 +300,19 @@ func (ln *Linear) BulkCreateTickets(ctx context.Context, request *v2.TicketsServ
 			return nil, fmt.Errorf("baton-linear: failed to create issue payload: %w", err)
 		}
 
+		l.Info("Payload", zap.Any("payload", payload))
+
 		payloads[i] = *payload
 	}
+
+	l.Info("Payloads Length", zap.Int("length", len(payloads)))
 
 	issues, err := ln.client.BulkCreateIssues(ctx, &payloads)
 	if err != nil {
 		return nil, fmt.Errorf("baton-linear: failed to bulk create issues: %w", err)
 	}
+
+	l.Info("Issues", zap.Any("issues", issues))
 
 	responses := make([]*v2.TicketsServiceCreateTicketResponse, len(*issues))
 	for i, issue := range *issues {
@@ -308,6 +320,8 @@ func (ln *Linear) BulkCreateTickets(ctx context.Context, request *v2.TicketsServ
 			Ticket: ticketFromIssue(&issue),
 		}
 	}
+
+	l.Info("Responses", zap.Any("responses", responses))
 
 	return &v2.TicketsServiceBulkCreateTicketsResponse{
 		Tickets: responses,
