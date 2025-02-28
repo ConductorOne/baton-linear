@@ -238,11 +238,14 @@ func getCustomFieldSchema(field linear.IssueField) (*v2.TicketCustomField, bool)
 				return nil, false
 			}
 		case "ENUM":
-			enums := make([]string, len(field.Type.EnumValues))
+			enums := make([]*v2.TicketCustomFieldObjectValue, len(field.Type.EnumValues))
 			for i, v := range field.Type.EnumValues {
-				enums[i] = v.Name
+				enums[i] = &v2.TicketCustomFieldObjectValue{
+					Id:          v.Name,
+					DisplayName: v.Name,
+				}
 			}
-			return sdkTicket.PickMultipleStringsFieldSchema(field.Name, field.Name, false, enums), true
+			return sdkTicket.PickObjectValueFieldSchema(field.Name, field.Name, false, enums), true
 		case "LIST":
 			return nil, false
 		case "NON_NULL":
