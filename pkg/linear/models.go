@@ -1,5 +1,7 @@
 package linear
 
+import "time"
+
 type PageInfo struct {
 	EndCursor       string `json:"endCursor"`
 	HasNextPage     bool   `json:"hasNextPage"`
@@ -66,6 +68,10 @@ type Team struct {
 		Nodes    []TeamMembership `json:"nodes"`
 		PageInfo PageInfo         `json:"pageInfo"`
 	}
+	States struct {
+		Nodes    []WorkflowState `json:"nodes"`
+		PageInfo PageInfo        `json:"pageInfo"`
+	} `json:"states,omitempty"`
 }
 
 type Project struct {
@@ -127,4 +133,64 @@ type TeamMembership struct {
 	ID   string `json:"id"`
 	User User   `json:"user"`
 	Team Team   `json:"team"`
+}
+
+type WorkflowType string
+
+const (
+	Backlog   WorkflowType = "backlog"
+	Unstarted WorkflowType = "unstarted"
+	Started   WorkflowType = "started"
+	Completed WorkflowType = "completed"
+	Canceled  WorkflowType = "canceled"
+)
+
+type WorkflowState struct {
+	ID       string       `json:"id"`
+	Name     string       `json:"name"`
+	Color    string       `json:"color"`
+	Type     WorkflowType `json:"type"`
+	Position float64      `json:"position"`
+}
+
+type Issue struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	State       struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	} `json:"state"`
+	Labels struct {
+		Nodes []struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		} `json:"nodes"`
+	} `json:"labels,omitempty"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+	URL       string    `json:"url"`
+}
+
+type IssueField struct {
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	Type        IssueFieldType `json:"type"`
+}
+
+type IssueFieldType struct {
+	Name        string                `json:"name"`
+	Description string                `json:"description"`
+	Kind        string                `json:"kind"`
+	OfType      *IssueFieldType       `json:"ofType,omitempty"`
+	EnumValues  []IssueFieldEnumValue `json:"enumValues,omitempty"`
+}
+
+type IssueFieldEnumValue struct {
+	Name string `json:"name"`
+}
+
+type IssueLabel struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
