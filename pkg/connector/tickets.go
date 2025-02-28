@@ -241,7 +241,15 @@ func getCustomFieldSchema(field linear.IssueField) (*v2.TicketCustomField, bool)
 			}
 			return sdkTicket.PickObjectValueFieldSchema(field.Name, field.Name, false, enums), true
 		case "LIST":
-			return nil, false
+			var ofType *linear.IssueFieldType
+			if field.Type.OfType.Kind == "NON_NULL" {
+				ofType = field.Type.OfType.OfType
+			} else {
+				ofType = field.Type.OfType
+			}
+			if ofType.Kind == "SCALAR" && ofType.Name == "String" {
+				return sdkTicket.StringsFieldSchema(field.Name, field.Name, false), true
+			}
 		case "NON_NULL":
 			if field.Type.OfType != nil {
 				req, success := getCustomFieldSchema(linear.IssueField{
