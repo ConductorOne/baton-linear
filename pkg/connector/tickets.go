@@ -216,7 +216,7 @@ func getCustomFieldSchema(field linear.IssueField) (*v2.TicketCustomField, bool)
 			{Id: "4", DisplayName: "Low"},
 		}
 		return sdkTicket.PickObjectValueFieldSchema(field.Name, field.Name, true, objectValues), true
-	case "assigneeId", "createAsUser", "cycleId", "projectId", "projectMilestoneId", "stateId", "subscriberIds", "templateId":
+	case "assigneeId", "cycleId", "projectId", "projectMilestoneId", "stateId", "subscriberIds", "templateId":
 		switch field.Type.Kind {
 		case "SCALAR":
 			switch field.Type.Name {
