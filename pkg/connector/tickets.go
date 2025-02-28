@@ -179,15 +179,9 @@ func ticketSchemaFromTeam(team linear.Team, customFields map[string]*v2.TicketCu
 	}
 
 	return &v2.TicketSchema{
-		Id:          team.ID,
-		DisplayName: team.Name,
-		Statuses:    statuses,
-		Types: []*v2.TicketType{
-			{
-				Id:          "issue",
-				DisplayName: "Issue",
-			},
-		},
+		Id:           team.ID,
+		DisplayName:  team.Name,
+		Statuses:     statuses,
 		CustomFields: customFields,
 	}
 }
