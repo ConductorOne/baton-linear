@@ -269,44 +269,99 @@ func getCustomFieldSchema(field linear.IssueField) (*v2.TicketCustomField, bool)
 }
 
 func (ln *Linear) BulkCreateTickets(ctx context.Context, request *v2.TicketsServiceBulkCreateTicketsRequest) (*v2.TicketsServiceBulkCreateTicketsResponse, error) {
-	tickets := make([]*v2.TicketsServiceCreateTicketResponse, 0)
-	for _, tr := range request.GetTicketRequests() {
-		reqBody := tr.GetRequest()
-		ticketBody := &v2.Ticket{
-			DisplayName:  reqBody.GetDisplayName(),
-			Description:  reqBody.GetDescription(),
-			Status:       reqBody.GetStatus(),
-			Labels:       reqBody.GetLabels(),
-			CustomFields: reqBody.GetCustomFields(),
-			RequestedFor: reqBody.GetRequestedFor(),
-		}
-		ticket, annos, err := ln.CreateTicket(ctx, ticketBody, tr.GetSchema())
-		// So we can track the external ticket ref annotation
-		annos.Merge(tr.GetAnnotations()...)
-		var ticketResp *v2.TicketsServiceCreateTicketResponse
-		if err != nil {
-			ticketResp = &v2.TicketsServiceCreateTicketResponse{Ticket: nil, Annotations: annos, Error: err.Error()}
-		} else {
-			ticketResp = &v2.TicketsServiceCreateTicketResponse{Ticket: ticket, Annotations: annos}
-		}
-		tickets = append(tickets, ticketResp)
+	l := ctxzap.Extract(ctx)
+
+	l.Info("Bulk creating tickets", zap.Int("length", len(request.TicketRequests)))
+
+	if len(request.TicketRequests) == 0 {
+		return &v2.TicketsServiceBulkCreateTicketsResponse{
+			Tickets: []*v2.TicketsServiceCreateTicketResponse{},
+		}, nil
 	}
-	return &v2.TicketsServiceBulkCreateTicketsResponse{Tickets: tickets}, nil
+
+	payloads := make([]linear.CreateIssuePayload, len(request.TicketRequests))
+	annos := make([]annotations.Annotations, len(request.TicketRequests))
+	for i, tr := range request.TicketRequests {
+		req := tr.GetRequest()
+		schema := tr.GetSchema()
+
+		ticket := &v2.Ticket{
+			DisplayName:  req.DisplayName,
+			Description:  req.Description,
+			Status:       &v2.TicketStatus{Id: req.Status.Id, DisplayName: req.Status.DisplayName},
+			Labels:       req.Labels,
+			CustomFields: req.CustomFields,
+		}
+		payload, err := ln.createIssuePayloadFromTicket(ctx, ticket, schema)
+		if err != nil {
+			return nil, fmt.Errorf("baton-linear: failed to create issue payload: %w", err)
+		}
+
+		l.Info("Payload", zap.Any("payload", payload))
+
+		payloads[i] = *payload
+		annos[i] = tr.GetAnnotations()
+	}
+
+	l.Info("Payloads Length", zap.Int("length", len(payloads)))
+
+	issues, err := ln.client.BulkCreateIssues(ctx, payloads)
+	if err != nil {
+		return nil, fmt.Errorf("baton-linear: failed to bulk create issues: %w", err)
+	}
+
+	l.Info("Issues", zap.Any("issues", issues))
+
+	responses := make([]*v2.TicketsServiceCreateTicketResponse, len(issues))
+	for i, issue := range issues {
+		responses[i] = &v2.TicketsServiceCreateTicketResponse{
+			Ticket:      ticketFromIssue(&issue),
+			Annotations: annos[i],
+		}
+	}
+
+	l.Info("Responses", zap.Any("responses", responses))
+
+	return &v2.TicketsServiceBulkCreateTicketsResponse{
+		Tickets: responses,
+	}, nil
 }
 
 func (ln *Linear) BulkGetTickets(ctx context.Context, request *v2.TicketsServiceBulkGetTicketsRequest) (*v2.TicketsServiceBulkGetTicketsResponse, error) {
-	tickets := make([]*v2.TicketsServiceGetTicketResponse, 0)
-	for _, ticketReq := range request.GetTicketRequests() {
-		ticket, annos, err := ln.GetTicket(ctx, ticketReq.GetId())
-		// So we can track the external ticket ref annotation
-		annos.Merge(ticketReq.GetAnnotations()...)
-		var ticketResp *v2.TicketsServiceGetTicketResponse
-		if err != nil {
-			ticketResp = &v2.TicketsServiceGetTicketResponse{Ticket: ticket, Annotations: annos, Error: err.Error()}
-		} else {
-			ticketResp = &v2.TicketsServiceGetTicketResponse{Ticket: ticket, Annotations: annos}
-		}
-		tickets = append(tickets, ticketResp)
+	l := ctxzap.Extract(ctx)
+
+	l.Info("Bulk getting tickets", zap.Int("length", len(request.TicketRequests)))
+
+	if len(request.TicketRequests) == 0 {
+		return &v2.TicketsServiceBulkGetTicketsResponse{
+			Tickets: []*v2.TicketsServiceGetTicketResponse{},
+		}, nil
 	}
-	return &v2.TicketsServiceBulkGetTicketsResponse{Tickets: tickets}, nil
+
+	// Extract ticket IDs from the request
+	ticketIDs := make([]string, 0, len(request.TicketRequests))
+	ticketAnnosMap := make(map[string]annotations.Annotations)
+	for _, req := range request.TicketRequests {
+		ticketIDs = append(ticketIDs, req.Id)
+		ticketAnnosMap[req.Id] = req.GetAnnotations()
+	}
+
+	// Query the issues
+	issues, _, _, err := ln.client.ListIssuesByIDs(ctx, ticketIDs)
+	if err != nil {
+		return nil, fmt.Errorf("baton-linear: failed to query issues: %w", err)
+	}
+
+	// Create response
+	responses := make([]*v2.TicketsServiceGetTicketResponse, 0, len(issues))
+	for _, issue := range issues {
+		responses = append(responses, &v2.TicketsServiceGetTicketResponse{
+			Ticket:      ticketFromIssue(&issue),
+			Annotations: ticketAnnosMap[issue.ID],
+		})
+	}
+
+	return &v2.TicketsServiceBulkGetTicketsResponse{
+		Tickets: responses,
+	}, nil
 }

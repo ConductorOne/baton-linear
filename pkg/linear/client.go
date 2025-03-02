@@ -783,6 +783,9 @@ func (c *Client) BulkCreateIssues(ctx context.Context, payloads []CreateIssuePay
 
 	defer resp.Body.Close()
 
+	if !res.Data.IssueBatchCreate.Success {
+		return nil, fmt.Errorf("failed to create issues")
+	}
 	return res.Data.IssueBatchCreate.Issues, nil
 }
 
