@@ -70,6 +70,13 @@ func (ln *Linear) createIssuePayloadFromTicket(ctx context.Context, ticket *v2.T
 				}
 				val = intVal
 			}
+		} else if id == "stateId" {
+			if objVal, ok := val.(*v2.TicketCustomFieldObjectValue); ok {
+				val = objVal.Id
+			} else if strVal, ok := val.(string); ok {
+				// For backwards compatibility with baton-linear v0.0.11 and earlier
+				val = strVal
+			}
 		}
 		payload.FieldOptions[cf.Id] = val
 	}
@@ -123,11 +130,11 @@ func (ln *Linear) GetTicketSchema(ctx context.Context, schemaID string) (*v2.Tic
 	if len(teams) != 1 {
 		return nil, nil, fmt.Errorf("baton-linear: expected 1 team, got %d", len(teams))
 	}
-	customFields, err := ln.getCustomFields(ctx)
+	fields, _, _, _, err := ln.client.ListIssueFields(ctx)
 	if err != nil {
-		return nil, nil, fmt.Errorf("baton-linear: failed to list custom fields: %w", err)
+		return nil, nil, fmt.Errorf("baton-linear: failed to list issue fields: %w", err)
 	}
-	return ticketSchemaFromTeam(teams[0], customFields), nil, nil
+	return ticketSchemaFromTeam(ctx, teams[0], fields), nil, nil
 }
 
 // ListTicketSchemas lists all the ticket schemas for Linear Issues.
@@ -151,32 +158,22 @@ func (ln *Linear) ListTicketSchemas(ctx context.Context, p *pagination.Token) ([
 		return nil, "", annotations, err
 	}
 
-	customFields, err := ln.getCustomFields(ctx)
+	fields, _, _, _, err := ln.client.ListIssueFields(ctx)
 	if err != nil {
-		return nil, "", annotations, fmt.Errorf("baton-linear: failed to list custom fields: %w", err)
+		return nil, "", annotations, fmt.Errorf("baton-linear: failed to list issue fields: %w", err)
 	}
 
 	var ret []*v2.TicketSchema
 	for _, team := range teams {
-		ret = append(ret, ticketSchemaFromTeam(team, customFields))
+		ret = append(ret, ticketSchemaFromTeam(ctx, team, fields))
 	}
 
 	return ret, pageToken, annotations, nil
 }
 
-func ticketSchemaFromTeam(team linear.Team, customFields map[string]*v2.TicketCustomField) *v2.TicketSchema {
-	var statuses []*v2.TicketStatus
-
-	sort.Slice(team.States.Nodes, func(i, j int) bool {
-		return team.States.Nodes[i].Position < team.States.Nodes[j].Position
-	})
-
-	for _, state := range team.States.Nodes {
-		statuses = append(statuses, &v2.TicketStatus{
-			Id:          state.ID,
-			DisplayName: state.Name,
-		})
-	}
+func ticketSchemaFromTeam(ctx context.Context, team linear.Team, fields []linear.IssueField) *v2.TicketSchema {
+	statuses := ticketStatusesFromTeam(team)
+	customFields := getCustomFields(ctx, fields, statuses)
 
 	return &v2.TicketSchema{
 		Id:           team.ID,
@@ -186,23 +183,32 @@ func ticketSchemaFromTeam(team linear.Team, customFields map[string]*v2.TicketCu
 	}
 }
 
-func (ln *Linear) getCustomFields(ctx context.Context) (map[string]*v2.TicketCustomField, error) {
-	fields, _, _, _, err := ln.client.ListIssueFields(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("baton-linear: failed to list issue fields: %w", err)
-	}
+func ticketStatusesFromTeam(team linear.Team) []*v2.TicketStatus {
+	// Sort the statuses by position in Linear
+	sort.Slice(team.States.Nodes, func(i, j int) bool {
+		return team.States.Nodes[i].Position < team.States.Nodes[j].Position
+	})
 
-	fieldMap := make(map[string]*v2.TicketCustomField)
-	for _, f := range fields {
-		if cfSchema, success := getCustomFieldSchema(f); success {
-			fieldMap[f.Name] = cfSchema
-		}
+	var statuses []*v2.TicketStatus
+	for _, state := range team.States.Nodes {
+		statuses = append(statuses, &v2.TicketStatus{Id: state.ID, DisplayName: state.Name})
 	}
-
-	return fieldMap, nil
+	return statuses
 }
 
-func getCustomFieldSchema(field linear.IssueField) (*v2.TicketCustomField, bool) {
+func getCustomFields(ctx context.Context, fields []linear.IssueField, statuses []*v2.TicketStatus) map[string]*v2.TicketCustomField {
+	fieldMap := make(map[string]*v2.TicketCustomField)
+	for _, f := range fields {
+		if cfSchema, ok := getCustomFieldSchema(f, statuses); ok {
+			fieldMap[f.Name] = cfSchema
+		}
+		// TODO(johnallers): else, Log that the field is not supported
+	}
+
+	return fieldMap
+}
+
+func getCustomFieldSchema(field linear.IssueField, statuses []*v2.TicketStatus) (*v2.TicketCustomField, bool) {
 	if strings.HasPrefix(field.Description, "[Internal]") {
 		return nil, false
 	}
@@ -216,7 +222,16 @@ func getCustomFieldSchema(field linear.IssueField) (*v2.TicketCustomField, bool)
 			{Id: "4", DisplayName: "Low"},
 		}
 		return sdkTicket.PickObjectValueFieldSchema(field.Name, field.Name, true, objectValues), true
-	case "assigneeId", "cycleId", "projectId", "projectMilestoneId", "stateId", "subscriberIds", "templateId":
+	case "stateId":
+		statusOptions := make([]*v2.TicketCustomFieldObjectValue, len(statuses))
+		for i, status := range statuses {
+			statusOptions[i] = &v2.TicketCustomFieldObjectValue{
+				Id:          status.Id,
+				DisplayName: "status",
+			}
+		}
+		return sdkTicket.PickObjectValueFieldSchema(field.Name, field.Name, false, statusOptions), true
+	case "assigneeId", "cycleId", "projectId", "projectMilestoneId", "subscriberIds", "templateId":
 		switch field.Type.Kind {
 		case "SCALAR":
 			switch field.Type.Name {
@@ -252,12 +267,12 @@ func getCustomFieldSchema(field linear.IssueField) (*v2.TicketCustomField, bool)
 			}
 		case "NON_NULL":
 			if field.Type.OfType != nil {
-				req, success := getCustomFieldSchema(linear.IssueField{
+				req, ok := getCustomFieldSchema(linear.IssueField{
 					Name:        field.Name,
 					Description: field.Description,
 					Type:        *field.Type.OfType,
-				})
-				if success {
+				}, statuses)
+				if ok {
 					req.Required = true
 					return req, true
 				}
