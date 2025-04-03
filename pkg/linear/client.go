@@ -733,7 +733,7 @@ func (c *Client) CreateIssue(ctx context.Context, payload CreateIssuePayload) (*
 	return &res.Data.IssueCreate.Issue, nil
 }
 
-func (c *Client) BulkCreateIssues(ctx context.Context, payloads *[]CreateIssuePayload) (*[]Issue, error) {
+func (c *Client) BulkCreateIssues(ctx context.Context, payloads []CreateIssuePayload) ([]Issue, error) {
 	query := `mutation IssueCreateBatch($input: IssueBatchCreateInput!) {
 		issueBatchCreate(input: $input) {
 			success
@@ -758,8 +758,8 @@ func (c *Client) BulkCreateIssues(ctx context.Context, payloads *[]CreateIssuePa
 		}
 	}`
 
-	issues := make([]map[string]interface{}, len(*payloads))
-	for i, payload := range *payloads {
+	issues := make([]map[string]interface{}, len(payloads))
+	for i, payload := range payloads {
 		issues[i] = *createIssuePayloadToInputMap(payload)
 	}
 	input := map[string]interface{}{"issues": issues}
@@ -771,8 +771,8 @@ func (c *Client) BulkCreateIssues(ctx context.Context, payloads *[]CreateIssuePa
 	var res struct {
 		Data struct {
 			IssueBatchCreate struct {
-				Success bool     `json:"success"`
-				Issues  *[]Issue `json:"issues"`
+				Success bool    `json:"success"`
+				Issues  []Issue `json:"issues"`
 			} `json:"issueBatchCreate"`
 		} `json:"data"`
 	}
@@ -828,9 +828,9 @@ func (c *Client) GetIssue(ctx context.Context, issueId string) (*Issue, error) {
 	return &res.Data.Issue, nil
 }
 
-func (c *Client) ListIssuesByIDs(ctx context.Context, issueIDs []string) (*[]Issue, *http.Response, *v2.RateLimitDescription, error) {
+func (c *Client) ListIssuesByIDs(ctx context.Context, issueIDs []string) ([]Issue, *http.Response, *v2.RateLimitDescription, error) {
 	if len(issueIDs) == 0 {
-		return &[]Issue{}, nil, nil, nil
+		return []Issue{}, nil, nil, nil
 	}
 
 	query := `query Issues($issueIds: [ID!]) {
@@ -871,7 +871,7 @@ func (c *Client) ListIssuesByIDs(ctx context.Context, issueIDs []string) (*[]Iss
 		return nil, resp, rlData, err
 	}
 
-	return &res.Data.Issues.Nodes, resp, rlData, nil
+	return res.Data.Issues.Nodes, resp, rlData, nil
 }
 
 func (c *Client) GetIssueLabel(ctx context.Context, labelName string) (*IssueLabel, *http.Response, *v2.RateLimitDescription, error) {
