@@ -64,6 +64,9 @@ func (ln *Linear) createIssuePayloadFromTicket(ctx context.Context, ticket *v2.T
 		// TODO(johnallers): Need to convert Int/Float fields from String
 		if id == "priority" {
 			if objVal, ok := val.(*v2.TicketCustomFieldObjectValue); ok {
+				if objVal == nil {
+					continue
+				}
 				intVal, err := strconv.Atoi(objVal.Id)
 				if err != nil {
 					return nil, fmt.Errorf("baton-linear: failed to convert priority to int: %w", err)
@@ -72,6 +75,9 @@ func (ln *Linear) createIssuePayloadFromTicket(ctx context.Context, ticket *v2.T
 			}
 		} else if id == "stateId" {
 			if objVal, ok := val.(*v2.TicketCustomFieldObjectValue); ok {
+				if objVal == nil {
+					continue
+				}
 				val = objVal.Id
 			} else if strVal, ok := val.(string); ok {
 				// For backwards compatibility with baton-linear v0.0.11 and earlier
