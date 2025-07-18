@@ -972,8 +972,10 @@ func (c *Client) doRequest(ctx context.Context, body interface{}, res interface{
 
 	resp, err := c.httpClient.Do(req, doOptions...)
 	// Linear returns 400 when rate limited, so change it to a retryable error
-	if err != nil && resp != nil && resp.StatusCode == http.StatusBadRequest {
+	if err != nil && resp != nil && resp.StatusCode == http.StatusBadRequest && gqlErr.IsRateLimited() {
+		rlData.Status = v2.RateLimitDescription_STATUS_OVERLIMIT
 		return resp, rlData, uhttp.WrapErrorsWithRateLimitInfo(codes.Unavailable, resp, err)
 	}
+
 	return resp, rlData, err
 }
