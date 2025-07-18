@@ -1,6 +1,9 @@
 package linear
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 type PageInfo struct {
 	EndCursor       string `json:"endCursor"`
@@ -93,7 +96,8 @@ type Project struct {
 type GraphQLError struct {
 	Error  string `json:"error"`
 	Errors []struct {
-		Message string `json:"message"`
+		Message    string                 `json:"message"`
+		Extensions map[string]interface{} `json:"extensions,omitempty"`
 	} `json:"errors"`
 }
 
@@ -105,6 +109,22 @@ func (e *GraphQLError) Message() string {
 		return "unknown graphql error"
 	}
 	return e.Errors[0].Message
+}
+
+// IsRateLimited checks if the error contains Linear's RATELIMITED error code
+func (e *GraphQLError) IsRateLimited() bool {
+	for _, err := range e.Errors {
+		if extensions, ok := err.Extensions["code"]; ok {
+			if code, ok := extensions.(string); ok && code == "RATELIMITED" {
+				return true
+			}
+		}
+		// Also check the message for backward compatibility
+		if strings.Contains(strings.ToLower(err.Message), "ratelimited") {
+			return true
+		}
+	}
+	return false
 }
 
 type ViewerPermissions struct {
