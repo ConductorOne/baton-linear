@@ -164,7 +164,8 @@ func (ln *Linear) ListTicketSchemas(ctx context.Context, p *pagination.Token) ([
 		return nil, "", annotations, err
 	}
 
-	fields, _, _, _, err := ln.client.ListIssueFields(ctx)
+	fields, _, _, rlData, err := ln.client.ListIssueFields(ctx)
+	annotations.WithRateLimiting(rlData)
 	if err != nil {
 		return nil, "", annotations, fmt.Errorf("baton-linear: failed to list issue fields: %w", err)
 	}
