@@ -93,8 +93,7 @@ type Project struct {
 type GraphQLError struct {
 	Error  string `json:"error"`
 	Errors []struct {
-		Message    string                 `json:"message"`
-		Extensions map[string]interface{} `json:"extensions,omitempty"`
+		Message string `json:"message"`
 	} `json:"errors"`
 }
 
