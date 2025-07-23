@@ -1,6 +1,14 @@
 package linear
 
-import "time"
+import (
+	"context"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
+	"go.uber.org/zap"
+)
 
 type PageInfo struct {
 	EndCursor       string `json:"endCursor"`
@@ -93,7 +101,8 @@ type Project struct {
 type GraphQLError struct {
 	Error  string `json:"error"`
 	Errors []struct {
-		Message string `json:"message"`
+		Message    string                 `json:"message"`
+		Extensions map[string]interface{} `json:"extensions,omitempty"`
 	} `json:"errors"`
 }
 
@@ -105,6 +114,49 @@ func (e *GraphQLError) Message() string {
 		return "unknown graphql error"
 	}
 	return e.Errors[0].Message
+}
+
+// IsRateLimited checks if the error contains Linear's RATELIMITED error code.
+func (e *GraphQLError) IsRateLimited(ctx context.Context) bool {
+	// Get logger from context if available, otherwise use a default logger
+	l := ctxzap.Extract(ctx)
+
+	for _, err := range e.Errors {
+		// Log the error message and extensions for debugging
+		l.Info("checking GraphQL error for rate limiting",
+			zap.String("message", err.Message),
+			zap.Any("extensions", err.Extensions))
+
+		if extensions, ok := err.Extensions["code"]; ok {
+			l.Info("found 'code' extension",
+				zap.Any("code_value", extensions),
+				zap.String("code_type", fmt.Sprintf("%T", extensions)))
+
+			if code, ok := extensions.(string); ok && code == "RATELIMITED" {
+				l.Info("rate limited detected via code extension",
+					zap.String("code", code))
+				return true
+			} else {
+				l.Info("code extension is not 'RATELIMITED'",
+					zap.Any("got_value", extensions),
+					zap.String("got_type", fmt.Sprintf("%T", extensions)))
+			}
+		} else {
+			l.Info("no 'code' extension found")
+		}
+
+		// Also check the message for backward compatibility
+		if strings.Contains(strings.ToLower(err.Message), "ratelimited") {
+			l.Info("rate limited detected via message",
+				zap.String("message", err.Message))
+			return true
+		} else {
+			l.Info("message does not contain 'ratelimited'",
+				zap.String("message", err.Message))
+		}
+	}
+	l.Info("no rate limiting detected in any GraphQL errors")
+	return false
 }
 
 type ViewerPermissions struct {
