@@ -974,7 +974,6 @@ func (c *Client) doRequest(ctx context.Context, body interface{}, res interface{
 
 	// Add logging for troubleshooting
 	l := ctxzap.Extract(ctx)
-	isRateLimited := gqlErr.IsRateLimited(ctx)
 	l.Info("doRequest completed",
 		zap.Error(err),
 		zap.Int("status_code", func() int {
@@ -982,23 +981,13 @@ func (c *Client) doRequest(ctx context.Context, body interface{}, res interface{
 				return resp.StatusCode
 			}
 			return 0
-		}()),
-		zap.Any("rate_limit_data", rlData),
-		zap.Bool("gql_err_is_rate_limited", isRateLimited))
+		}()))
 
 	// Linear returns 400 when rate limited, so change it to a retryable error
-	if err != nil && resp != nil && (resp.StatusCode == http.StatusBadRequest || isRateLimited) {
+	if err != nil && resp != nil && (resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusTooManyRequests) {
 		l.Info("rate limiting detected", zap.Int("status_code", resp.StatusCode))
 
 		rlData.Status = v2.RateLimitDescription_STATUS_OVERLIMIT
-		return resp, rlData, uhttp.WrapErrorsWithRateLimitInfo(codes.Unavailable, resp, err)
-	}
-
-	// Ensure error is wrapped with rate limit info when using WithRatelimitData
-	if err != nil && resp != nil {
-		l.Info("wrapping error with rate limit info",
-			zap.Int("status_code", resp.StatusCode),
-			zap.Error(err))
 		return resp, rlData, uhttp.WrapErrorsWithRateLimitInfo(codes.Unavailable, resp, err)
 	}
 
