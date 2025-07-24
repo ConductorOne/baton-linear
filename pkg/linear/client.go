@@ -974,7 +974,7 @@ func (c *Client) doRequest(ctx context.Context, body interface{}, res interface{
 
 	// Add logging for troubleshooting
 	l := ctxzap.Extract(ctx)
-	l.Info("doRequest completed",
+	l.Debug("doRequest completed",
 		zap.Error(err),
 		zap.Int("status_code", func() int {
 			if resp != nil {
@@ -985,12 +985,12 @@ func (c *Client) doRequest(ctx context.Context, body interface{}, res interface{
 
 	// Linear returns 400 when rate limited, so change it to a retryable error
 	if err != nil && resp != nil && (resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusTooManyRequests) {
-		l.Info("rate limiting detected", zap.Int("status_code", resp.StatusCode))
+		l.Debug("rate limiting detected", zap.Int("status_code", resp.StatusCode))
 
 		rlData.Status = v2.RateLimitDescription_STATUS_OVERLIMIT
 		return resp, rlData, uhttp.WrapErrorsWithRateLimitInfo(codes.Unavailable, resp, err)
 	}
 
-	l.Info("returning without rate limit wrapping")
+	l.Debug("returning without rate limit wrapping")
 	return resp, rlData, err
 }
