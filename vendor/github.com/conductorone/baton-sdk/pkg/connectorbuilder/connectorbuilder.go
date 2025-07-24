@@ -331,12 +331,14 @@ func (b *builderImpl) ListTicketSchemas(ctx context.Context, request *v2.Tickets
 		MaxDelay:     60 * time.Second,
 	})
 
+	l := ctxzap.Extract(ctx)
 	for {
 		out, nextPageToken, annos, err := b.ticketManager.ListTicketSchemas(ctx, &pagination.Token{
 			Size:  int(request.PageSize),
 			Token: request.PageToken,
 		})
 		if err == nil {
+			l.Debug("listing ticket schemas completed with no errors")
 			if request.PageToken != "" && request.PageToken == nextPageToken {
 				b.m.RecordTaskFailure(ctx, tt, b.nowFunc().Sub(start))
 				return nil, fmt.Errorf("error: listing ticket schemas failed: next page token is the same as the current page token. this is most likely a connector bug")
@@ -350,9 +352,11 @@ func (b *builderImpl) ListTicketSchemas(ctx context.Context, request *v2.Tickets
 			}, nil
 		}
 		if retryer.ShouldWaitAndRetry(ctx, err) {
+			l.Debug("retrying listing ticket schemas", zap.Error(err))
 			continue
 		}
 		b.m.RecordTaskFailure(ctx, tt, b.nowFunc().Sub(start))
+		l.Debug("listing ticket schemas failed", zap.Error(err))
 		return nil, fmt.Errorf("error: listing ticket schemas failed: %w", err)
 	}
 }
