@@ -19,6 +19,9 @@ var version = "dev"
 func main() {
 	ctx := context.Background()
 
+	fmt.Fprintln(os.Stdout, "=== MAIN STARTED ===")
+	fmt.Fprintln(os.Stdout, "BATON_LOG_LEVEL: ", os.Getenv("BATON_LOG_LEVEL"))
+
 	_, cmd, err := configschema.DefineConfiguration(ctx, "baton-linear", getConnector, cfg.Config)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
