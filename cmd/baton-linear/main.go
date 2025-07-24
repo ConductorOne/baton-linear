@@ -19,6 +19,9 @@ var version = "dev"
 func main() {
 	ctx := context.Background()
 
+	fmt.Fprintln(os.Stdout, "=== MAIN STARTED ===")
+	fmt.Fprintln(os.Stdout, "BATON_LOG_LEVEL: ", os.Getenv("BATON_LOG_LEVEL"))
+
 	_, cmd, err := configschema.DefineConfiguration(ctx, "baton-linear", getConnector, cfg.Config)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
@@ -36,6 +39,9 @@ func main() {
 
 func getConnector(ctx context.Context, lc *cfg.Linear) (types.ConnectorServer, error) {
 	l := ctxzap.Extract(ctx)
+	l.Info("test info log from getConnector")
+	l.Debug("test debug log from getConnector")
+
 	cb, err := connector.New(ctx, lc.ApiKey)
 	if err != nil {
 		l.Error("error creating connector", zap.Error(err))
