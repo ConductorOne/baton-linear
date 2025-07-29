@@ -74,7 +74,7 @@ func OptionallyAddLambdaCommand[T field.Configurable](
 			return err
 		}
 
-		runCtx, otelShutdown, err := initOtel(context.Background(), name, v, initalLogFields)
+		runCtx, otelShutdown, err := initOtel(runCtx, name, v, initalLogFields)
 		if err != nil {
 			return err
 		}
@@ -82,7 +82,7 @@ func OptionallyAddLambdaCommand[T field.Configurable](
 			if otelShutdown == nil {
 				return
 			}
-			shutdownCtx, cancel := context.WithDeadline(context.Background(), time.Now().Add(otelShutdownTimeout))
+			shutdownCtx, cancel := context.WithDeadline(runCtx, time.Now().Add(otelShutdownTimeout))
 			defer cancel()
 			err := otelShutdown(shutdownCtx)
 			if err != nil {
