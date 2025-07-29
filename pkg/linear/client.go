@@ -28,7 +28,10 @@ func NewClient(ctx context.Context, apiKey string) (*Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating HTTP client failed: %w", err)
 	}
-	wrapper := uhttp.NewBaseHttpClient(httpClient)
+	wrapper, err := uhttp.NewBaseHttpClientWithContext(ctx, httpClient)
+	if err != nil {
+		return nil, err
+	}
 
 	apiUrl, err := url.Parse(APIEndpoint)
 	if err != nil {
