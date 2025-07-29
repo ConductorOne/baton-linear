@@ -95,7 +95,7 @@ func OptionallyAddLambdaCommand[T field.Configurable](
 		}
 
 		client, webKey, err := c1_lambda_config.GetConnectorConfigServiceClient(
-			ctx,
+			runCtx,
 			v.GetString(field.LambdaServerClientIDField.GetName()),
 			v.GetString(field.LambdaServerClientSecretField.GetName()),
 		)
@@ -178,7 +178,7 @@ func OptionallyAddLambdaCommand[T field.Configurable](
 		}
 
 		s := c1_lambda_grpc.NewServer(authOpt)
-		connector.Register(ctx, s, c, opts)
+		connector.Register(runCtx, s, c, opts)
 
 		aws_lambda.Start(s.Handler)
 		return nil
