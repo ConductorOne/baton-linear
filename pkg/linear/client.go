@@ -24,6 +24,7 @@ type Client struct {
 func NewClient(ctx context.Context, apiKey string) (*Client, error) {
 	l := ctxzap.Extract(ctx)
 	options := []uhttp.Option{uhttp.WithLogger(true, l)}
+	ctx = ctxzap.ToContext(ctx, l)
 
 	httpClient, err := uhttp.NewClient(ctx, options...)
 	if err != nil {
