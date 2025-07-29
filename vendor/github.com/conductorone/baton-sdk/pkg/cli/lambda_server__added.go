@@ -104,7 +104,7 @@ func OptionallyAddLambdaCommand[T field.Configurable](
 		}
 
 		// Get configuration, convert it to viper flag values, then proceed.
-		config, err := client.GetConnectorConfig(ctx, &pb_connector_api.GetConnectorConfigRequest{})
+		config, err := client.GetConnectorConfig(runCtx, &pb_connector_api.GetConnectorConfigRequest{})
 		if err != nil {
 			return fmt.Errorf("lambda-run: failed to get connector config: %w", err)
 		}

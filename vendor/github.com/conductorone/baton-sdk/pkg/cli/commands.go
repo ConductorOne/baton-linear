@@ -347,17 +347,27 @@ func MakeGRPCServerCommand[T field.Configurable](
 			return err
 		}
 
+
+		initalLogFields := map[string]interface{}{
+			"tenant":       os.Getenv("tenant"),
+			"connector":    os.Getenv("connector"),
+			"installation": os.Getenv("installation"),
+			"app":          os.Getenv("app"),
+			"version":      os.Getenv("version"),
+		}
+
 		runCtx, err := initLogger(
 			ctx,
 			name,
 			logging.WithLogFormat(v.GetString("log-format")),
 			logging.WithLogLevel(v.GetString("log-level")),
+			logging.WithInitialFields(initalLogFields),
 		)
 		if err != nil {
 			return err
 		}
 
-		runCtx, otelShutdown, err := initOtel(runCtx, name, v, nil)
+		runCtx, otelShutdown, err := initOtel(runCtx, name, v, initalLogFields)
 		if err != nil {
 			return err
 		}
@@ -365,7 +375,7 @@ func MakeGRPCServerCommand[T field.Configurable](
 			if otelShutdown == nil {
 				return
 			}
-			shutdownCtx, cancel := context.WithDeadline(context.Background(), time.Now().Add(otelShutdownTimeout))
+			shutdownCtx, cancel := context.WithDeadline(runCtx, time.Now().Add(otelShutdownTimeout))
 			defer cancel()
 			err := otelShutdown(shutdownCtx)
 			if err != nil {
