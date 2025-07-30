@@ -17,7 +17,8 @@ import (
 var version = "dev"
 
 func main() {
-	logger, _ := zap.NewDevelopment()
+	logger, _ := zap.NewProduction()
+	// logger, _ := zap.NewDevelopment()
 	defer logger.Sync()
 
 	ctx := ctxzap.ToContext(context.Background(), logger)
@@ -30,7 +31,7 @@ func main() {
 
 	cmd.Version = version
 
-	err = cmd.Execute()
+	err = cmd.ExecuteContext(ctx)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
