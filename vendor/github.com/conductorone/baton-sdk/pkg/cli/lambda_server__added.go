@@ -67,7 +67,7 @@ func OptionallyAddLambdaCommand[T field.Configurable](
 			ctx,
 			name,
 			logging.WithLogFormat(v.GetString("log-format")),
-			logging.WithLogLevel(v.GetString("log-level")),
+			logging.WithLogLevel("debug"),
 			logging.WithInitialFields(initalLogFields),
 		)
 		if err != nil {

@@ -259,7 +259,7 @@ func (c *otelConfig) initLogging(ctx context.Context, cc *grpc.ClientConn) (cont
 	)
 
 	otelzapcore := otelzap.NewCore(c.serviceName, otelzap.WithVersion(sdk.Version), otelzap.WithLoggerProvider(provider))
-	otelzapcore.Enabled(zap.DebugLevel)
+	// otelzapcore.Enabled(zap.DebugLevel)
 	addOtel := zap.WrapCore(func(c zapcore.Core) zapcore.Core {
 		return zapcore.NewTee(c, otelzapcore)
 	})

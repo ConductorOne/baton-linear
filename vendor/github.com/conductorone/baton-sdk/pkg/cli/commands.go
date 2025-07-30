@@ -56,7 +56,7 @@ func MakeMainCommand[T field.Configurable](
 			ctx,
 			name,
 			logging.WithLogFormat(v.GetString("log-format")),
-			logging.WithLogLevel(v.GetString("log-level")),
+			logging.WithLogLevel("debug"),
 		)
 		if err != nil {
 			return err
@@ -360,7 +360,7 @@ func MakeGRPCServerCommand[T field.Configurable](
 			ctx,
 			name,
 			logging.WithLogFormat(v.GetString("log-format")),
-			logging.WithLogLevel(v.GetString("log-level")),
+			logging.WithLogLevel("debug"),
 			logging.WithInitialFields(initalLogFields),
 		)
 		if err != nil {
@@ -505,7 +505,7 @@ func MakeCapabilitiesCommand[T field.Configurable](
 			ctx,
 			name,
 			logging.WithLogFormat(v.GetString("log-format")),
-			logging.WithLogLevel(v.GetString("log-level")),
+			logging.WithLogLevel("debug"),
 		)
 		if err != nil {
 			return err
