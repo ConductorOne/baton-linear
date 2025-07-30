@@ -354,6 +354,7 @@ func MakeGRPCServerCommand[T field.Configurable](
 			"installation": os.Getenv("installation"),
 			"app":          os.Getenv("app"),
 			"version":      os.Getenv("version"),
+			"test": "grpc",
 		}
 		
 		runCtx, err := initLogger(
