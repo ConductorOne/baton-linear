@@ -773,6 +773,7 @@ func (s *syncer) SyncTargetedResource(ctx context.Context) error {
 // SyncResources handles fetching all of the resources from the connector given the provided resource types. For each
 // resource, we gather any child resource types it may emit, and traverse the resource tree.
 func (s *syncer) SyncResources(ctx context.Context) error {
+	ctx = ctxzap.ToContext(ctx, zap.L())
 	l := ctxzap.Extract(ctx)
 	l.Info("********* SyncResources")
 	l.Debug("********* SyncResources")
