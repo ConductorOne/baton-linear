@@ -13,6 +13,7 @@ import (
 	grant "github.com/conductorone/baton-sdk/pkg/types/grant"
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
+	"go.uber.org/zap"
 )
 
 const (
@@ -56,6 +57,8 @@ func (o *projectResourceType) List(ctx context.Context, parentId *v2.ResourceId,
 	l := ctxzap.Extract(ctx)
 	l.Debug("********** List debug project")
 	l.Info("********** List info project")
+	zap.L().Debug("******List zap project debug")
+	zap.L().Info("******List zap project info")
 	var annotations annotations.Annotations
 	bag, err := parsePageToken(token.Token, &v2.ResourceId{ResourceType: resourceTypeProject.Id})
 	if err != nil {
