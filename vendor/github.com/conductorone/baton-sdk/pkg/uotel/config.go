@@ -135,11 +135,15 @@ func (c *otelConfig) init(ctx context.Context) (context.Context, error) {
 	}
 
 	ctx, err = c.initLogging(ctx, cc)
+	l := ctxzap.Extract(ctx)
+	l.Info("******* after initLogging")
 	if err != nil {
 		return nil, fmt.Errorf("otel: failed to initialize logging: %w", err)
 	}
 
 	ctx, err = c.initTracing(ctx, cc)
+	l = ctxzap.Extract(ctx)
+	l.Info("******* after initTracing")
 	if err != nil {
 		return nil, fmt.Errorf("otel: failed to initialize tracing: %w", err)
 	}
