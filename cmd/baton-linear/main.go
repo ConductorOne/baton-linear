@@ -17,8 +17,7 @@ import (
 var version = "dev"
 
 func main() {
-	// zap.NewDevelopment()
-	logger, _ := zap.NewProduction()
+	logger, _ := zap.NewDevelopment()
 	defer logger.Sync()
 
 	ctx := ctxzap.ToContext(context.Background(), logger)
