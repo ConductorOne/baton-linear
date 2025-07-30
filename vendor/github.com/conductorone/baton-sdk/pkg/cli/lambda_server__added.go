@@ -61,20 +61,21 @@ func OptionallyAddLambdaCommand[T field.Configurable](
 			"installation": os.Getenv("installation"),
 			"app":          os.Getenv("app"),
 			"version":      os.Getenv("version"),
+			"test": "lambda",
 		}
 
 		runCtx, err := initLogger(
 			ctx,
 			name,
 			logging.WithLogFormat(v.GetString("log-format")),
-			logging.WithLogLevel(v.GetString("log-level")),
+			logging.WithLogLevel("debug"),
 			logging.WithInitialFields(initalLogFields),
 		)
 		if err != nil {
 			return err
 		}
 
-		runCtx, otelShutdown, err := initOtel(context.Background(), name, v, initalLogFields)
+		runCtx, otelShutdown, err := initOtel(runCtx, name, v, initalLogFields)
 		if err != nil {
 			return err
 		}
@@ -82,7 +83,7 @@ func OptionallyAddLambdaCommand[T field.Configurable](
 			if otelShutdown == nil {
 				return
 			}
-			shutdownCtx, cancel := context.WithDeadline(context.Background(), time.Now().Add(otelShutdownTimeout))
+			shutdownCtx, cancel := context.WithDeadline(runCtx, time.Now().Add(otelShutdownTimeout))
 			defer cancel()
 			err := otelShutdown(shutdownCtx)
 			if err != nil {
@@ -95,7 +96,7 @@ func OptionallyAddLambdaCommand[T field.Configurable](
 		}
 
 		client, webKey, err := c1_lambda_config.GetConnectorConfigServiceClient(
-			ctx,
+			runCtx,
 			v.GetString(field.LambdaServerClientIDField.GetName()),
 			v.GetString(field.LambdaServerClientSecretField.GetName()),
 		)
@@ -104,7 +105,7 @@ func OptionallyAddLambdaCommand[T field.Configurable](
 		}
 
 		// Get configuration, convert it to viper flag values, then proceed.
-		config, err := client.GetConnectorConfig(ctx, &pb_connector_api.GetConnectorConfigRequest{})
+		config, err := client.GetConnectorConfig(runCtx, &pb_connector_api.GetConnectorConfigRequest{})
 		if err != nil {
 			return fmt.Errorf("lambda-run: failed to get connector config: %w", err)
 		}
@@ -178,9 +179,9 @@ func OptionallyAddLambdaCommand[T field.Configurable](
 		}
 
 		s := c1_lambda_grpc.NewServer(authOpt)
-		connector.Register(ctx, s, c, opts)
+		connector.Register(runCtx, s, c, opts)
 
-		aws_lambda.Start(s.Handler)
+		aws_lambda.StartWithOptions(s.Handler, aws_lambda.WithContext(runCtx))
 		return nil
 	}
 	return nil

@@ -22,13 +22,21 @@ type Client struct {
 }
 
 func NewClient(ctx context.Context, apiKey string) (*Client, error) {
-	options := []uhttp.Option{uhttp.WithLogger(true, ctxzap.Extract(ctx))}
+	l := ctxzap.Extract(ctx)
+	options := []uhttp.Option{uhttp.WithLogger(true, l)}
+	ctx = ctxzap.ToContext(ctx, l)
 
 	httpClient, err := uhttp.NewClient(ctx, options...)
 	if err != nil {
 		return nil, fmt.Errorf("creating HTTP client failed: %w", err)
 	}
-	wrapper := uhttp.NewBaseHttpClient(httpClient)
+	wrapper, err := uhttp.NewBaseHttpClientWithContext(ctx, httpClient)
+	if err != nil {
+		return nil, err
+	}
+
+	l.Info("************* Linear New client debug")
+	l.Debug("************* Linear New client debug")
 
 	apiUrl, err := url.Parse(APIEndpoint)
 	if err != nil {

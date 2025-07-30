@@ -135,11 +135,15 @@ func (c *otelConfig) init(ctx context.Context) (context.Context, error) {
 	}
 
 	ctx, err = c.initLogging(ctx, cc)
+	l := ctxzap.Extract(ctx)
+	l.Info("******* after initLogging")
 	if err != nil {
 		return nil, fmt.Errorf("otel: failed to initialize logging: %w", err)
 	}
 
 	ctx, err = c.initTracing(ctx, cc)
+	l = ctxzap.Extract(ctx)
+	l.Info("******* after initTracing")
 	if err != nil {
 		return nil, fmt.Errorf("otel: failed to initialize tracing: %w", err)
 	}
@@ -259,6 +263,7 @@ func (c *otelConfig) initLogging(ctx context.Context, cc *grpc.ClientConn) (cont
 	)
 
 	otelzapcore := otelzap.NewCore(c.serviceName, otelzap.WithVersion(sdk.Version), otelzap.WithLoggerProvider(provider))
+	// otelzapcore.Enabled(zap.DebugLevel)
 	addOtel := zap.WrapCore(func(c zapcore.Core) zapcore.Core {
 		return zapcore.NewTee(c, otelzapcore)
 	})

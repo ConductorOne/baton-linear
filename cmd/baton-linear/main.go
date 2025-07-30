@@ -17,17 +17,21 @@ import (
 var version = "dev"
 
 func main() {
-	ctx := context.Background()
+	/*logger, _ := zap.NewProduction()
+	// logger, _ := zap.NewDevelopment()
+	defer logger.Sync()
 
-	_, cmd, err := configschema.DefineConfiguration(ctx, "baton-linear", getConnector, cfg.Config)
+	ctx := ctxzap.ToContext(context.Background(), logger)
+	*/
+	_, cmd, err := configschema.DefineConfiguration(context.Background(), "baton-linear", getConnector, cfg.Config)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
 
 	cmd.Version = version
-
 	err = cmd.Execute()
+	//err = cmd.ExecuteContext(ctx)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)

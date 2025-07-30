@@ -12,6 +12,8 @@ import (
 	ent "github.com/conductorone/baton-sdk/pkg/types/entitlement"
 	grant "github.com/conductorone/baton-sdk/pkg/types/grant"
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
+	"go.uber.org/zap"
 )
 
 const (
@@ -52,6 +54,11 @@ func projectResource(project *linear.Project, parentId *v2.ResourceId) (*v2.Reso
 }
 
 func (o *projectResourceType) List(ctx context.Context, parentId *v2.ResourceId, token *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
+	l := ctxzap.Extract(ctx)
+	l.Debug("********** List debug project")
+	l.Info("********** List info project")
+	zap.L().Debug("******List zap project debug")
+	zap.L().Info("******List zap project info")
 	var annotations annotations.Annotations
 	bag, err := parsePageToken(token.Token, &v2.ResourceId{ResourceType: resourceTypeProject.Id})
 	if err != nil {

@@ -56,7 +56,7 @@ func MakeMainCommand[T field.Configurable](
 			ctx,
 			name,
 			logging.WithLogFormat(v.GetString("log-format")),
-			logging.WithLogLevel(v.GetString("log-level")),
+			logging.WithLogLevel("debug"),
 		)
 		if err != nil {
 			return err
@@ -70,7 +70,7 @@ func MakeMainCommand[T field.Configurable](
 			if otelShutdown == nil {
 				return
 			}
-			shutdownCtx, cancel := context.WithDeadline(context.Background(), time.Now().Add(otelShutdownTimeout))
+			shutdownCtx, cancel := context.WithDeadline(runCtx, time.Now().Add(otelShutdownTimeout))
 			defer cancel()
 			err := otelShutdown(shutdownCtx)
 			if err != nil {
@@ -327,7 +327,7 @@ func initOtel(ctx context.Context, name string, v *viper.Viper, initialLogFields
 		otelOpts = append(otelOpts, uotel.WithOtelEndpoint(otelEndpoint, otelTLSCertPath, otelTLSCert))
 	}
 
-	return uotel.InitOtel(context.Background(), otelOpts...)
+	return uotel.InitOtel(ctx, otelOpts...)
 }
 
 func MakeGRPCServerCommand[T field.Configurable](
@@ -347,17 +347,28 @@ func MakeGRPCServerCommand[T field.Configurable](
 			return err
 		}
 
+
+		initalLogFields := map[string]interface{}{
+			"tenant":       os.Getenv("tenant"),
+			"connector":    os.Getenv("connector"),
+			"installation": os.Getenv("installation"),
+			"app":          os.Getenv("app"),
+			"version":      os.Getenv("version"),
+			"test": "grpc",
+		}
+		
 		runCtx, err := initLogger(
 			ctx,
 			name,
 			logging.WithLogFormat(v.GetString("log-format")),
-			logging.WithLogLevel(v.GetString("log-level")),
+			logging.WithLogLevel("debug"),
+			logging.WithInitialFields(initalLogFields),
 		)
 		if err != nil {
 			return err
 		}
 
-		runCtx, otelShutdown, err := initOtel(runCtx, name, v, nil)
+		runCtx, otelShutdown, err := initOtel(runCtx, name, v, initalLogFields)
 		if err != nil {
 			return err
 		}
@@ -365,7 +376,7 @@ func MakeGRPCServerCommand[T field.Configurable](
 			if otelShutdown == nil {
 				return
 			}
-			shutdownCtx, cancel := context.WithDeadline(context.Background(), time.Now().Add(otelShutdownTimeout))
+			shutdownCtx, cancel := context.WithDeadline(runCtx, time.Now().Add(otelShutdownTimeout))
 			defer cancel()
 			err := otelShutdown(shutdownCtx)
 			if err != nil {
@@ -495,7 +506,7 @@ func MakeCapabilitiesCommand[T field.Configurable](
 			ctx,
 			name,
 			logging.WithLogFormat(v.GetString("log-format")),
-			logging.WithLogLevel(v.GetString("log-level")),
+			logging.WithLogLevel("debug"),
 		)
 		if err != nil {
 			return err
