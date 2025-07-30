@@ -17,7 +17,11 @@ import (
 var version = "dev"
 
 func main() {
-	ctx := context.Background()
+	// zap.NewDevelopment()
+	logger, _ := zap.NewProduction()
+	defer logger.Sync()
+
+	ctx := ctxzap.ToContext(context.Background(), logger)
 
 	_, cmd, err := configschema.DefineConfiguration(ctx, "baton-linear", getConnector, cfg.Config)
 	if err != nil {
