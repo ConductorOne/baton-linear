@@ -181,7 +181,7 @@ func OptionallyAddLambdaCommand[T field.Configurable](
 		s := c1_lambda_grpc.NewServer(authOpt)
 		connector.Register(runCtx, s, c, opts)
 
-		aws_lambda.Start(s.Handler)
+		aws_lambda.StartWithOptions(s.Handler, aws_lambda.WithContext(runCtx))
 		return nil
 	}
 	return nil
