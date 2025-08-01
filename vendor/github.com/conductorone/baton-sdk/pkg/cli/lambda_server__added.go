@@ -78,6 +78,8 @@ func OptionallyAddLambdaCommand[T field.Configurable](
 		if err != nil {
 			return err
 		}
+		l := ctxzap.Extract(ctx)
+		l.Info("************ after initOtel", zap.Any("keys", v.AllKeys()), zap.String("log-level", v.GetString("log-level")))
 		defer func() {
 			if otelShutdown == nil {
 				return
