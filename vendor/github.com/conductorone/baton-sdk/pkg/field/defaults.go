@@ -195,6 +195,7 @@ func LambdaServerFields() []SchemaField {
 		LambdaServerAuthJWTExpectedIssuerField,
 		LambdaServerAuthJWTExpectedSubjectField,
 		LambdaServerAuthJWTExpectedAudienceField,
+		logLevelField,
 	}
 }
 
