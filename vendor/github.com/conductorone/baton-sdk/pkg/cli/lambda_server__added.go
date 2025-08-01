@@ -26,6 +26,7 @@ import (
 	c1_lambda_grpc "github.com/conductorone/baton-sdk/pkg/lambda/grpc"
 	c1_lambda_config "github.com/conductorone/baton-sdk/pkg/lambda/grpc/config"
 	"github.com/conductorone/baton-sdk/pkg/lambda/grpc/middleware"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 )
 
 func OptionallyAddLambdaCommand[T field.Configurable](
