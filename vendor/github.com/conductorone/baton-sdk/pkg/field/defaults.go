@@ -79,6 +79,10 @@ var (
 		WithPersistent(true), WithExportTarget(ExportTargetNone))
 	logLevelField = StringField("log-level", WithDefaultValue("info"), WithDescription("The log level: debug, info, warn, error"), WithPersistent(true),
 		WithExportTarget(ExportTargetOps))
+	logLevelDebugExpiresAt = StringField("log-level-debug-expires-at",
+		WithDescription("The timestamp indicating when debug-level logging should expire. If the current time is before this timestamp, log level will be set to debug."),
+		WithPersistent(true),
+		WithExportTarget(ExportTargetOps))
 	skipFullSync            = BoolField("skip-full-sync", WithDescription("This must be set to skip a full sync"), WithPersistent(true), WithExportTarget(ExportTargetNone))
 	targetedSyncResourceIDs = StringSliceField("sync-resources", WithDescription("The resource IDs to sync"), WithPersistent(true), WithExportTarget(ExportTargetNone))
 	diffSyncsField          = BoolField(
@@ -231,6 +235,7 @@ var DefaultFields = []SchemaField{
 	ticketIDField,
 	ticketTemplatePathField,
 	logLevelField,
+	logLevelDebugExpiresAt,
 	skipFullSync,
 	targetedSyncResourceIDs,
 	externalResourceC1ZField,

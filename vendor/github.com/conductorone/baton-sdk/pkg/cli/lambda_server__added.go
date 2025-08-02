@@ -54,6 +54,14 @@ func OptionallyAddLambdaCommand[T field.Configurable](
 		if err != nil {
 			return err
 		}
+		
+		logLevel := v.GetString("log-level")
+
+		// Downgrade log level to "info" if debug mode has expired
+		debugModeExpiresAt := viper.GetTime("log-level-debug-expires-at")
+		if logLevel == "debug" && !debugModeExpiresAt.IsZero() && time.Now().After(debugModeExpiresAt) {
+			logLevel = "info"
+		}
 
 		initalLogFields := map[string]interface{}{
 			"tenant":       os.Getenv("tenant"),
@@ -67,7 +75,7 @@ func OptionallyAddLambdaCommand[T field.Configurable](
 			ctx,
 			name,
 			logging.WithLogFormat(v.GetString("log-format")),
-			logging.WithLogLevel(v.GetString("log-level")),
+			logging.WithLogLevel(v.GetString(logLevel)),
 			logging.WithInitialFields(initalLogFields),
 		)
 		if err != nil {
