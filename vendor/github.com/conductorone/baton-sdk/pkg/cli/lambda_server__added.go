@@ -63,6 +63,7 @@ func OptionallyAddLambdaCommand[T field.Configurable](
 			"app":          os.Getenv("app"),
 			"version":      os.Getenv("version"),
 			"v-log-level":  v.GetString("log-level"),
+			"keys":         v.AllKeys(),
 		}
 
 		runCtx, err := initLogger(
