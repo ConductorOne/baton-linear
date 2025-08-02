@@ -59,12 +59,12 @@ func OptionallyAddLambdaCommand[T field.Configurable](
 
 		downgrade := false
 		// Downgrade log level to "info" if debug mode has expired
-		/*debugModeExpiresAt := v.GetTime("log-level-debug-expires-at")
+		debugModeExpiresAt := v.GetTime("log-level-debug-expires-at")
 		if logLevel == "debug" && !debugModeExpiresAt.IsZero() && time.Now().After(debugModeExpiresAt) {
 			logLevel = "info"
 			downgrade = true
-		}*/
-		debugModeExpiresAt := v.GetString("log-level-debug-expires-at")
+		}
+		debugModeExpiresAtStr := v.GetString("log-level-debug-expires-at")
 
 		initalLogFields := map[string]interface{}{
 			"tenant":       os.Getenv("tenant"),
@@ -74,13 +74,14 @@ func OptionallyAddLambdaCommand[T field.Configurable](
 			"version":      os.Getenv("version"),
 			"downgrade": downgrade,
 			"debug-expires": debugModeExpiresAt,
+			"debug-expires-string": debugModeExpiresAtStr,
 		}
 
 		runCtx, err := initLogger(
 			ctx,
 			name,
 			logging.WithLogFormat(v.GetString("log-format")),
-			logging.WithLogLevel(v.GetString(logLevel)),
+			logging.WithLogLevel(logLevel),
 			logging.WithInitialFields(initalLogFields),
 		)
 		if err != nil {
