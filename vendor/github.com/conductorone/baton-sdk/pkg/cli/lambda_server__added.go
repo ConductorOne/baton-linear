@@ -59,7 +59,7 @@ func OptionallyAddLambdaCommand[T field.Configurable](
 
 		downgrade := false
 		// Downgrade log level to "info" if debug mode has expired
-		debugModeExpiresAt := viper.GetTime("log-level-debug-expires-at")
+		debugModeExpiresAt := v.GetTime("log-level-debug-expires-at")
 		if logLevel == "debug" && !debugModeExpiresAt.IsZero() && time.Now().After(debugModeExpiresAt) {
 			logLevel = "info"
 			downgrade = true
