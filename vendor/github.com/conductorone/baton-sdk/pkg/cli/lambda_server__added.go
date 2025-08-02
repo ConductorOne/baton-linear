@@ -57,10 +57,12 @@ func OptionallyAddLambdaCommand[T field.Configurable](
 		
 		logLevel := v.GetString("log-level")
 
+		downgrade := false
 		// Downgrade log level to "info" if debug mode has expired
 		debugModeExpiresAt := viper.GetTime("log-level-debug-expires-at")
 		if logLevel == "debug" && !debugModeExpiresAt.IsZero() && time.Now().After(debugModeExpiresAt) {
 			logLevel = "info"
+			downgrade = true
 		}
 
 		initalLogFields := map[string]interface{}{
@@ -69,6 +71,8 @@ func OptionallyAddLambdaCommand[T field.Configurable](
 			"installation": os.Getenv("installation"),
 			"app":          os.Getenv("app"),
 			"version":      os.Getenv("version"),
+			"downgrade": downgrade,
+			"debug-expires": debugModeExpiresAt,
 		}
 
 		runCtx, err := initLogger(
