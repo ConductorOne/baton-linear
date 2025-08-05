@@ -152,12 +152,10 @@ func (ln *Linear) ListTicketSchemas(ctx context.Context, p *pagination.Token) ([
 	if err != nil {
 		return nil, "", nil, err
 	}
-	l := ctxzap.Extract(ctx)
 
 	teams, nextToken, _, rlData, err := ln.client.ListTeamWorkflowStates(ctx, linear.GetTeamsVars{After: bag.PageToken(), First: resourcePageSize})
 	annotations.WithRateLimiting(rlData)
 	if err != nil {
-		l.Debug("teams failed", zap.Error(err), zap.Any("rlData", rlData))
 		return nil, "", annotations, fmt.Errorf("baton-linear: failed to list teams: %w", err)
 	}
 
@@ -169,7 +167,6 @@ func (ln *Linear) ListTicketSchemas(ctx context.Context, p *pagination.Token) ([
 	fields, _, _, rlData, err := ln.client.ListIssueFields(ctx)
 	annotations.WithRateLimiting(rlData)
 	if err != nil {
-		l.Debug("fields failed", zap.Error(err), zap.Any("rlData", rlData))
 		return nil, "", annotations, fmt.Errorf("baton-linear: failed to list issue fields: %w", err)
 	}
 
