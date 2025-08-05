@@ -17,13 +17,22 @@ var (
 		field.WithDisplayName("Skip projects"),
 		field.WithDescription("Skip syncing projects."),
 	)
+	teamIDsTicketSchemaFilterField = field.StringSliceField(
+		"ticket-schema-team-ids-filter",
+		field.WithDisplayName("Teams"),
+		field.WithDescription("Comma-separated list of team IDs to use for tickets schemas."),
+	)
 )
 
 var externalTicketField = field.TicketingField.ExportAs(field.ExportTargetGUI)
+var configRelations = []field.SchemaFieldRelationship{
+	field.FieldsDependentOn([]field.SchemaField{teamIDsTicketSchemaFilterField}, []field.SchemaField{field.TicketingField}),
+}
 
 //go:generate go run ./gen
 var Config = field.NewConfiguration(
-	[]field.SchemaField{apiKey, externalTicketField, skipProjects},
+	[]field.SchemaField{apiKey, externalTicketField, skipProjects, teamIDsTicketSchemaFilterField},
+	field.WithConstraints(configRelations...),
 	field.WithConnectorDisplayName("Linear"),
 	field.WithHelpUrl("/docs/baton/linear"),
 	field.WithIconUrl("/static/app-icons/linear.svg"),

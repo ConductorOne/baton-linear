@@ -7,6 +7,7 @@ type Linear struct {
 	ApiKey string `mapstructure:"api-key"`
 	Ticketing bool `mapstructure:"ticketing"`
 	SkipProjects bool `mapstructure:"skip-projects"`
+	TicketSchemaTeamIdsFilter []string `mapstructure:"ticket-schema-team-ids-filter"`
 }
 
 func (c* Linear) findFieldByTag(tagValue string) (any, bool) {

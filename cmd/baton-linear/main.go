@@ -36,7 +36,7 @@ func main() {
 
 func getConnector(ctx context.Context, lc *cfg.Linear) (types.ConnectorServer, error) {
 	l := ctxzap.Extract(ctx)
-	cb, err := connector.New(ctx, lc.ApiKey, lc.SkipProjects)
+	cb, err := connector.New(ctx, lc.ApiKey, lc.SkipProjects, lc.TicketSchemaTeamIdsFilter)
 	if err != nil {
 		l.Error("error creating connector", zap.Error(err))
 		return nil, err
