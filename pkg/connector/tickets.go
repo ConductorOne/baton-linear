@@ -178,7 +178,6 @@ func (ln *Linear) ListTicketSchemas(ctx context.Context, p *pagination.Token) ([
 		ret = append(ret, ticketSchemaFromTeam(ctx, team, fields))
 	}
 
-	l.Debug("listing ticket schemas completed", zap.Any("ret", ret), zap.Any("pageToken", pageToken), zap.Any("annotations", annotations))
 	return ret, pageToken, annotations, nil
 }
 
