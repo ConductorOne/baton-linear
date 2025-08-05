@@ -6,6 +6,7 @@ import "reflect"
 type Linear struct {
 	ApiKey string `mapstructure:"api-key"`
 	Ticketing bool `mapstructure:"ticketing"`
+	SkipProjects bool `mapstructure:"skip-projects"`
 }
 
 func (c* Linear) findFieldByTag(tagValue string) (any, bool) {
