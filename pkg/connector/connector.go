@@ -41,17 +41,23 @@ var (
 )
 
 type Linear struct {
-	client *linear.Client
+	client       *linear.Client
+	skipProjects bool
 }
 
 func (ln *Linear) ResourceSyncers(ctx context.Context) []connectorbuilder.ResourceSyncer {
-	return []connectorbuilder.ResourceSyncer{
+	resourceSyncers := []connectorbuilder.ResourceSyncer{
 		userBuilder(ln.client),
 		teamBuilder(ln.client),
-		projectBuilder(ln.client),
 		orgBuilder(ln.client),
 		roleBuilder(ln.client),
 	}
+
+	if !ln.skipProjects {
+		resourceSyncers = append(resourceSyncers, projectBuilder(ln.client))
+	}
+
+	return resourceSyncers
 }
 
 // Metadata returns metadata about the connector.
@@ -73,13 +79,14 @@ func (ln *Linear) Validate(ctx context.Context) (annotations.Annotations, error)
 }
 
 // New returns the Linear connector.
-func New(ctx context.Context, apiKey string) (*Linear, error) {
+func New(ctx context.Context, apiKey string, skipProjects bool) (*Linear, error) {
 	client, err := linear.NewClient(ctx, apiKey)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Linear{
-		client: client,
+		client:       client,
+		skipProjects: skipProjects,
 	}, nil
 }
