@@ -41,8 +41,9 @@ var (
 )
 
 type Linear struct {
-	client       *linear.Client
-	skipProjects bool
+	client              *linear.Client
+	skipProjects        bool
+	ticketSchemaTeamIDs []string
 }
 
 func (ln *Linear) ResourceSyncers(ctx context.Context) []connectorbuilder.ResourceSyncer {
@@ -79,14 +80,15 @@ func (ln *Linear) Validate(ctx context.Context) (annotations.Annotations, error)
 }
 
 // New returns the Linear connector.
-func New(ctx context.Context, apiKey string, skipProjects bool) (*Linear, error) {
+func New(ctx context.Context, apiKey string, skipProjects bool, ticketSchemaTeamIDs []string) (*Linear, error) {
 	client, err := linear.NewClient(ctx, apiKey)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Linear{
-		client:       client,
-		skipProjects: skipProjects,
+		client:              client,
+		skipProjects:        skipProjects,
+		ticketSchemaTeamIDs: ticketSchemaTeamIDs,
 	}, nil
 }

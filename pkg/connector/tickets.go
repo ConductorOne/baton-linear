@@ -154,7 +154,7 @@ func (ln *Linear) ListTicketSchemas(ctx context.Context, p *pagination.Token) ([
 	}
 	l := ctxzap.Extract(ctx)
 
-	teams, nextToken, _, rlData, err := ln.client.ListTeamWorkflowStates(ctx, linear.GetTeamsVars{After: bag.PageToken(), First: resourcePageSize})
+	teams, nextToken, _, rlData, err := ln.client.ListTeamWorkflowStates(ctx, linear.GetTeamsVars{TeamIDs: ln.ticketSchemaTeamIDs, After: bag.PageToken(), First: resourcePageSize})
 	annotations.WithRateLimiting(rlData)
 	if err != nil {
 		l.Debug("teams failed", zap.Error(err), zap.Any("rlData", rlData))
