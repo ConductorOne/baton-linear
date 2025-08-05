@@ -63,6 +63,12 @@
       "boolField": {}
     },
     {
+      "name": "skip-projects",
+      "displayName": "Skip projects",
+      "description": "Skip syncing projects.",
+      "boolField": {}
+    },
+    {
       "name": "ticketing",
       "displayName": "Enable external ticket provisioning",
       "description": "This must be set to enable ticketing support",
