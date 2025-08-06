@@ -122,9 +122,12 @@ func (o *userResourceType) Grants(ctx context.Context, resource *v2.Resource, pt
 	userProfile := userTrait.GetProfile()
 	userRole, present := sdkResource.GetProfileStringValue(userProfile, userRoleProfileKey)
 	if !present {
-		return nil, "", nil, fmt.Errorf("list-grants: user role was not present on profile: %w", err)
+		return nil, "", nil, fmt.Errorf("list-grants: user role was not present on profile")
 	}
 	rr, err := roleResource(ctx, userRole, resource.ParentResourceId)
+	if err != nil {
+		return nil, "", nil, err
+	}
 	gr := grant.NewGrant(rr, membership, resource.Id)
 
 	rv = append(rv, gr)
