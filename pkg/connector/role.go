@@ -9,7 +9,6 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 	ent "github.com/conductorone/baton-sdk/pkg/types/entitlement"
-	grant "github.com/conductorone/baton-sdk/pkg/types/grant"
 	resource "github.com/conductorone/baton-sdk/pkg/types/resource"
 )
 
@@ -92,49 +91,7 @@ func (o *roleResourceType) Entitlements(_ context.Context, resource *v2.Resource
 }
 
 func (o *roleResourceType) Grants(ctx context.Context, resource *v2.Resource, token *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
-	var annotations annotations.Annotations
-	bag, err := parsePageToken(token.Token, &v2.ResourceId{ResourceType: resourceTypeUser.Id})
-	if err != nil {
-		return nil, "", nil, err
-	}
-
-	allUsers, nextToken, _, rlData, err := o.client.GetUsers(ctx, linear.GetResourcesVars{First: resourcePageSize, After: bag.PageToken()})
-	annotations.WithRateLimiting(rlData)
-	if err != nil {
-		return nil, "", annotations, fmt.Errorf("linear-connector: failed to list users: %w", err)
-	}
-
-	pageToken, err := bag.NextToken(nextToken)
-	if err != nil {
-		return nil, "", annotations, err
-	}
-
-	var userRole string
-	var rv []*v2.Grant
-
-	for _, user := range allUsers {
-		switch {
-		case user.Admin:
-			userRole = roleAdmin
-		case user.Guest:
-			userRole = roleGuest
-		default:
-			userRole = roleUser
-		}
-
-		if resource.Id.Resource == userRole {
-			userCopy := user
-			ur, err := userResource(ctx, &userCopy, resource.Id)
-			if err != nil {
-				return nil, "", annotations, err
-			}
-
-			gr := grant.NewGrant(resource, membership, ur.Id)
-			rv = append(rv, gr)
-		}
-	}
-
-	return rv, pageToken, annotations, nil
+	return nil, "", nil, nil
 }
 
 func roleBuilder(client *linear.Client) *roleResourceType {
