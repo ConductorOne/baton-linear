@@ -976,6 +976,7 @@ func (c *Client) doRequest(ctx context.Context, body interface{}, res interface{
 	// Linear returns 400 when rate limited, so change it to a retryable error
 	if err != nil && resp != nil && (resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusTooManyRequests) {
 		l.Debug("rate limiting detected", zap.Int("status_code", resp.StatusCode))
+		resp.StatusCode = http.StatusTooManyRequests
 
 		rlData.Status = v2.RateLimitDescription_STATUS_OVERLIMIT
 		return resp, rlData, uhttp.WrapErrorsWithRateLimitInfo(codes.Unavailable, resp, err)
