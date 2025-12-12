@@ -38,6 +38,8 @@ func userResource(ctx context.Context, user *linear.User, parentResourceID *v2.R
 
 	var userRole string
 	switch {
+	case user.Owner:
+		userRole = roleOwner
 	case user.Admin:
 		userRole = roleAdmin
 	case user.Guest:

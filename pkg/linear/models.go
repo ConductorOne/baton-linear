@@ -57,6 +57,7 @@ type User struct {
 	Teams        struct {
 		Nodes []Team `json:"nodes"`
 	} `json:"teams"`
+	Owner bool `json:"owner"`
 }
 
 type Team struct {
@@ -110,6 +111,7 @@ func (e *GraphQLError) Message() string {
 type ViewerPermissions struct {
 	Guest bool   `json:"guest"`
 	Admin bool   `json:"admin"`
+	Owner bool   `json:"owner"`
 	ID    string `json:"id"`
 }
 

@@ -25,12 +25,14 @@ const (
 	roleGuest = "guest"
 	roleUser  = "user"
 	roleAdmin = "admin"
+	roleOwner = "owner"
 )
 
 var roles = []string{
 	roleGuest,
 	roleUser,
 	roleAdmin,
+	roleOwner,
 }
 
 // Create a new connector resource for a Linear role.
