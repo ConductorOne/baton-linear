@@ -170,6 +170,7 @@ func (c *Client) GetUsers(ctx context.Context, getResourceVars GetResourcesVars)
 					organization {
 						id
 					}
+					owner
 				}
 				pageInfo {
 					endCursor
@@ -299,6 +300,7 @@ func (c *Client) GetOrganization(ctx context.Context, paginationVars PaginationV
 						id
 						admin
 						guest
+						owner
 					}
 					pageInfo {
 						hasPreviousPage
@@ -450,6 +452,7 @@ func (c *Client) Authorize(ctx context.Context) (ViewerPermissions, *http.Respon
 				guest
 				id
 				admin
+				owner
 			}
 		}`
 	b := map[string]interface{}{
