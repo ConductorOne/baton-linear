@@ -9,8 +9,11 @@ import (
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
-	resource "github.com/conductorone/baton-sdk/pkg/types/resource"
+	"github.com/conductorone/baton-sdk/pkg/types/grant"
+	sdkResource "github.com/conductorone/baton-sdk/pkg/types/resource"
 )
+
+const userRoleProfileKey = "user_role"
 
 type userResourceType struct {
 	resourceType *v2.ResourceType
@@ -33,25 +36,38 @@ func userResource(ctx context.Context, user *linear.User, parentResourceID *v2.R
 		lastName = names[1]
 	}
 
+	var userRole string
+	switch {
+	case user.Owner:
+		userRole = roleOwner
+	case user.Admin:
+		userRole = roleAdmin
+	case user.Guest:
+		userRole = roleGuest
+	default:
+		userRole = roleUser
+	}
+
 	profile := map[string]interface{}{
-		"first_name": firstName,
-		"last_name":  lastName,
-		"login":      user.Email,
-		"user_id":    user.ID,
+		"first_name":       firstName,
+		"last_name":        lastName,
+		"login":            user.Email,
+		"user_id":          user.ID,
+		userRoleProfileKey: userRole,
 	}
 
-	userTraitOptions := []resource.UserTraitOption{
-		resource.WithUserProfile(profile),
-		resource.WithEmail(user.Email, true),
-		resource.WithStatus(v2.UserTrait_Status_STATUS_ENABLED),
+	userTraitOptions := []sdkResource.UserTraitOption{
+		sdkResource.WithUserProfile(profile),
+		sdkResource.WithEmail(user.Email, true),
+		sdkResource.WithStatus(v2.UserTrait_Status_STATUS_ENABLED),
 	}
 
-	ret, err := resource.NewUserResource(
+	ret, err := sdkResource.NewUserResource(
 		user.Name,
 		resourceTypeUser,
 		user.ID,
 		userTraitOptions,
-		resource.WithParentResourceID(parentResourceID),
+		sdkResource.WithParentResourceID(parentResourceID),
 	)
 	if err != nil {
 		return nil, err
@@ -99,8 +115,25 @@ func (o *userResourceType) Entitlements(_ context.Context, _ *v2.Resource, _ *pa
 	return nil, "", nil, nil
 }
 
-func (o *userResourceType) Grants(_ context.Context, _ *v2.Resource, _ *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
-	return nil, "", nil, nil
+func (o *userResourceType) Grants(ctx context.Context, resource *v2.Resource, pt *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
+	var rv []*v2.Grant
+	userTrait, err := sdkResource.GetUserTrait(resource)
+	if err != nil {
+		return nil, "", nil, fmt.Errorf("list-grants: Failed to get user trait from user: %w", err)
+	}
+	userProfile := userTrait.GetProfile()
+	userRole, present := sdkResource.GetProfileStringValue(userProfile, userRoleProfileKey)
+	if !present {
+		return nil, "", nil, fmt.Errorf("list-grants: user role was not present on profile")
+	}
+	rr, err := roleResource(ctx, userRole, resource.ParentResourceId)
+	if err != nil {
+		return nil, "", nil, err
+	}
+	gr := grant.NewGrant(rr, membership, resource.Id)
+
+	rv = append(rv, gr)
+	return rv, "", nil, nil
 }
 
 func userBuilder(client *linear.Client) *userResourceType {

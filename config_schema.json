@@ -69,10 +69,27 @@
       "boolField": {}
     },
     {
+      "name": "ticket-schema-team-ids-filter",
+      "displayName": "Teams",
+      "description": "Comma-separated list of team IDs to use for tickets schemas.",
+      "stringSliceField": {}
+    },
+    {
       "name": "ticketing",
       "displayName": "Enable external ticket provisioning",
       "description": "This must be set to enable ticketing support",
       "boolField": {}
+    }
+  ],
+  "constraints": [
+    {
+      "kind": "CONSTRAINT_KIND_DEPENDENT_ON",
+      "fieldNames": [
+        "ticket-schema-team-ids-filter"
+      ],
+      "secondaryFieldNames": [
+        "ticketing"
+      ]
     }
   ],
   "displayName": "Linear",

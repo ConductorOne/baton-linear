@@ -153,7 +153,7 @@ func (ln *Linear) ListTicketSchemas(ctx context.Context, p *pagination.Token) ([
 		return nil, "", nil, err
 	}
 
-	teams, nextToken, _, rlData, err := ln.client.ListTeamWorkflowStates(ctx, linear.GetTeamsVars{After: bag.PageToken(), First: resourcePageSize})
+	teams, nextToken, _, rlData, err := ln.client.ListTeamWorkflowStates(ctx, linear.GetTeamsVars{TeamIDs: ln.ticketSchemaTeamIDs, After: bag.PageToken(), First: resourcePageSize})
 	annotations.WithRateLimiting(rlData)
 	if err != nil {
 		return nil, "", annotations, fmt.Errorf("baton-linear: failed to list teams: %w", err)

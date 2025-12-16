@@ -170,6 +170,7 @@ func (c *Client) GetUsers(ctx context.Context, getResourceVars GetResourcesVars)
 					organization {
 						id
 					}
+					owner
 				}
 				pageInfo {
 					endCursor
@@ -299,6 +300,7 @@ func (c *Client) GetOrganization(ctx context.Context, paginationVars PaginationV
 						id
 						admin
 						guest
+						owner
 					}
 					pageInfo {
 						hasPreviousPage
@@ -450,6 +452,7 @@ func (c *Client) Authorize(ctx context.Context) (ViewerPermissions, *http.Respon
 				guest
 				id
 				admin
+				owner
 			}
 		}`
 	b := map[string]interface{}{
@@ -974,6 +977,8 @@ func (c *Client) doRequest(ctx context.Context, body interface{}, res interface{
 
 	// Linear returns 400 when rate limited, so change it to a retryable error
 	if err != nil && resp != nil && (resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusTooManyRequests) {
+		resp.StatusCode = http.StatusTooManyRequests
+
 		rlData.Status = v2.RateLimitDescription_STATUS_OVERLIMIT
 		return resp, rlData, uhttp.WrapErrorsWithRateLimitInfo(codes.Unavailable, resp, err)
 	}
