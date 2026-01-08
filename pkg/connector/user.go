@@ -136,6 +136,30 @@ func (o *userResourceType) Grants(ctx context.Context, resource *v2.Resource, pt
 	return rv, "", nil, nil
 }
 
+// Create provisions a new user by sending an organization invite email.
+func (o *userResourceType) Create(ctx context.Context, resource *v2.Resource) (*v2.Resource, annotations.Annotations, error) {
+	userTrait, err := sdkResource.GetUserTrait(resource)
+	if err != nil {
+		return nil, nil, fmt.Errorf("linear-connector: failed to get user trait: %w", err)
+	}
+
+	emails := userTrait.GetEmails()
+	if len(emails) == 0 {
+		return nil, nil, fmt.Errorf("linear-connector: user email is required for provisioning")
+	}
+	email := emails[0].GetAddress()
+
+	// Default to MEMBER role for new invites
+	role := linear.LinearRoleMember
+
+	_, err = o.client.CreateOrganizationInvite(ctx, email, role)
+	if err != nil {
+		return nil, nil, fmt.Errorf("linear-connector: failed to create organization invite: %w", err)
+	}
+
+	return resource, nil, nil
+}
+
 func userBuilder(client *linear.Client) *userResourceType {
 	return &userResourceType{
 		resourceType: resourceTypeUser,
