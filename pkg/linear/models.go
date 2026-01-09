@@ -196,3 +196,16 @@ type IssueLabel struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 }
+
+// OrganizationInvite represents an invitation to join the organization.
+type OrganizationInvite struct {
+	ID    string `json:"id"`
+	Email string `json:"email"`
+}
+
+// Linear API role constants for organization invites.
+const (
+	LinearRoleAdmin  = "ADMIN"
+	LinearRoleMember = "MEMBER"
+	LinearRoleGuest  = "GUEST"
+)

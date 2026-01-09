@@ -915,7 +915,7 @@ func (c *Client) CreateIssueLabel(ctx context.Context, labelName string) (*Issue
 			success
 			issueLabel {
 				id
-				name	
+				name
 			}
 		}
 	}`
@@ -951,6 +951,100 @@ func (c *Client) CreateIssueLabel(ctx context.Context, labelName string) (*Issue
 	}
 
 	return &res.Data.IssueLabelCreate.IssueLabel, resp, rlData, nil
+}
+
+// CreateOrganizationInvite sends an email invite to provision a new user.
+// Role should be one of: LinearRoleAdmin, LinearRoleMember, or LinearRoleGuest.
+func (c *Client) CreateOrganizationInvite(ctx context.Context, email string, role string) (*OrganizationInvite, error) {
+	mutation := `mutation OrganizationInviteCreate($input: OrganizationInviteCreateInput!) {
+		organizationInviteCreate(input: $input) {
+			success
+			organizationInvite {
+				id
+				email
+			}
+		}
+	}`
+
+	vars := map[string]interface{}{
+		"input": map[string]interface{}{
+			"email": email,
+			"role":  role,
+		},
+	}
+
+	b := map[string]interface{}{
+		"query":     mutation,
+		"variables": vars,
+	}
+
+	var res struct {
+		Data struct {
+			OrganizationInviteCreate struct {
+				Success            bool               `json:"success"`
+				OrganizationInvite OrganizationInvite `json:"organizationInvite"`
+			} `json:"organizationInviteCreate"`
+		} `json:"data"`
+	}
+	resp, _, err := c.doRequest(ctx, b, &res)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	if !res.Data.OrganizationInviteCreate.Success {
+		return nil, fmt.Errorf("failed to create organization invite")
+	}
+
+	return &res.Data.OrganizationInviteCreate.OrganizationInvite, nil
+}
+
+// UpdateUser updates user properties such as admin status and active status.
+func (c *Client) UpdateUser(ctx context.Context, userID string, admin *bool, active *bool) error {
+	mutation := `mutation UserUpdate($id: String!, $input: UserUpdateInput!) {
+		userUpdate(id: $id, input: $input) {
+			success
+		}
+	}`
+
+	input := make(map[string]interface{})
+	if admin != nil {
+		input["admin"] = *admin
+	}
+	if active != nil {
+		input["active"] = *active
+	}
+
+	vars := map[string]interface{}{
+		"id":    userID,
+		"input": input,
+	}
+
+	b := map[string]interface{}{
+		"query":     mutation,
+		"variables": vars,
+	}
+
+	var res struct {
+		Data struct {
+			UserUpdate struct {
+				Success bool `json:"success"`
+			} `json:"userUpdate"`
+		} `json:"data"`
+	}
+	resp, _, err := c.doRequest(ctx, b, &res)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	if !res.Data.UserUpdate.Success {
+		return fmt.Errorf("failed to update user")
+	}
+
+	return nil
 }
 
 func (c *Client) doRequest(ctx context.Context, body interface{}, res interface{}) (*http.Response, *v2.RateLimitDescription, error) {
