@@ -7,6 +7,7 @@ import (
 	"github.com/conductorone/baton-linear/pkg/linear"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
+	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 	ent "github.com/conductorone/baton-sdk/pkg/types/entitlement"
 	grant "github.com/conductorone/baton-sdk/pkg/types/grant"
@@ -14,6 +15,11 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/types/known/structpb"
+)
+
+var (
+	_ connectorbuilder.ResourceSyncer = (*teamResourceType)(nil)
+	_ connectorbuilder.ResourceProvisioner = (*teamResourceType)(nil)
 )
 
 const memberEntitlement = "member"

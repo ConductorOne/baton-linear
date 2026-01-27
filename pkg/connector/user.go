@@ -8,10 +8,13 @@ import (
 	"github.com/conductorone/baton-linear/pkg/linear"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
+	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 	"github.com/conductorone/baton-sdk/pkg/types/grant"
 	sdkResource "github.com/conductorone/baton-sdk/pkg/types/resource"
 )
+
+var _ connectorbuilder.ResourceSyncer = (*userResourceType)(nil)
 
 const userRoleProfileKey = "user_role"
 
