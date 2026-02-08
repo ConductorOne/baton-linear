@@ -22,6 +22,10 @@ var (
 		field.WithDisplayName("Teams"),
 		field.WithDescription("Comma-separated list of team IDs to use for tickets schemas."),
 	)
+	baseURLField = field.StringField(
+		"base-url",
+		field.WithDescription("Override the Linear API URL (for testing)"),
+	)
 )
 
 var externalTicketField = field.TicketingField.ExportAs(field.ExportTargetGUI)
@@ -31,7 +35,7 @@ var configRelations = []field.SchemaFieldRelationship{
 
 //go:generate go run ./gen
 var Config = field.NewConfiguration(
-	[]field.SchemaField{apiKey, externalTicketField, skipProjects, teamIDsTicketSchemaFilterField},
+	[]field.SchemaField{apiKey, externalTicketField, skipProjects, teamIDsTicketSchemaFilterField, baseURLField},
 	field.WithConstraints(configRelations...),
 	field.WithConnectorDisplayName("Linear"),
 	field.WithHelpUrl("/docs/baton/linear"),
