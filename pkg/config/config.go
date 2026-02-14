@@ -25,6 +25,7 @@ var (
 	baseURLField = field.StringField(
 		"base-url",
 		field.WithDescription("Override the Linear API URL (for testing)"),
+		field.WithHidden(true),
 	)
 )
 
