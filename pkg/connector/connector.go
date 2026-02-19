@@ -79,8 +79,8 @@ func (ln *Linear) Validate(ctx context.Context) (annotations.Annotations, error)
 }
 
 // New returns the Linear connector.
-func New(ctx context.Context, apiKey string, skipProjects bool, ticketSchemaTeamIDs []string) (*Linear, error) {
-	client, err := linear.NewClient(ctx, apiKey)
+func New(ctx context.Context, apiKey string, skipProjects bool, ticketSchemaTeamIDs []string, baseURL string) (*Linear, error) {
+	client, err := linear.NewClient(ctx, apiKey, baseURL)
 	if err != nil {
 		return nil, err
 	}
