@@ -26,6 +26,7 @@ var (
 		"base-url",
 		field.WithDescription("Override the Linear API URL (for testing)"),
 		field.WithHidden(true),
+		field.WithExportTarget(field.ExportTargetCLIOnly),
 	)
 )
 
