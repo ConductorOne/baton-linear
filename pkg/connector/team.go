@@ -14,7 +14,6 @@ import (
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/types/known/structpb"
 )
 
 var (
@@ -177,15 +176,20 @@ func (o *teamResourceType) Revoke(ctx context.Context, grant *v2.Grant) (annotat
 		return nil, fmt.Errorf("baton-linear: only users can have team membership revoked")
 	}
 
-	metadata := &structpb.Struct{}
+	grantMetadata := &v2.GrantMetadata{}
 	annos := annotations.Annotations(grant.Annotations)
-	ok, err := annos.Pick(metadata)
+	ok, err := annos.Pick(grantMetadata)
 	if err != nil {
 		return nil, err
 	}
 
 	if !ok {
-		return nil, fmt.Errorf("baton-linear: annotation does not exist: %w", err)
+		return nil, fmt.Errorf("baton-linear: grant metadata annotation does not exist")
+	}
+
+	metadata := grantMetadata.GetMetadata()
+	if metadata == nil {
+		return nil, fmt.Errorf("baton-linear: grant metadata is nil")
 	}
 
 	membershipId := metadata.Fields["membership_id"].GetStringValue()
