@@ -21,7 +21,7 @@ type Client struct {
 	apiUrl     *url.URL
 }
 
-func NewClient(ctx context.Context, apiKey string) (*Client, error) {
+func NewClient(ctx context.Context, apiKey string, baseURL string) (*Client, error) {
 	options := []uhttp.Option{uhttp.WithLogger(true, ctxzap.Extract(ctx))}
 
 	httpClient, err := uhttp.NewClient(ctx, options...)
@@ -30,7 +30,11 @@ func NewClient(ctx context.Context, apiKey string) (*Client, error) {
 	}
 	wrapper := uhttp.NewBaseHttpClient(httpClient)
 
-	apiUrl, err := url.Parse(APIEndpoint)
+	endpoint := APIEndpoint
+	if baseURL != "" {
+		endpoint = baseURL
+	}
+	apiUrl, err := url.Parse(endpoint)
 	if err != nil {
 		return nil, err
 	}
