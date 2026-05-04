@@ -99,6 +99,74 @@ func (o *roleResourceType) Grants(ctx context.Context, resource *v2.Resource, to
 	return nil, "", nil, nil
 }
 
+// Grant assigns a role to a user.
+func (o *roleResourceType) Grant(ctx context.Context, principal *v2.Resource, entitlement *v2.Entitlement) (annotations.Annotations, error) {
+	if principal.Id.ResourceType != resourceTypeUser.Id {
+		return nil, fmt.Errorf("linear-connector: only users can be granted roles")
+	}
+
+	roleID := entitlement.Resource.Id.Resource
+	userID := principal.Id.Resource
+
+	switch roleID {
+	case roleAdmin:
+		// Promote to admin
+		admin := true
+		err := o.client.UpdateUser(ctx, userID, &admin, nil)
+		if err != nil {
+			return nil, fmt.Errorf("linear-connector: failed to grant admin role: %w", err)
+		}
+	case roleUser:
+		// Demote from admin to regular user
+		admin := false
+		err := o.client.UpdateUser(ctx, userID, &admin, nil)
+		if err != nil {
+			return nil, fmt.Errorf("linear-connector: failed to grant user role: %w", err)
+		}
+	case roleGuest, roleOwner:
+		// Guest is set at invite time, Owner requires enterprise UI
+		return nil, fmt.Errorf("linear-connector: %s role cannot be granted via API", roleID)
+	default:
+		return nil, fmt.Errorf("linear-connector: unknown role: %s", roleID)
+	}
+
+	return nil, nil
+}
+
+// Revoke removes a role from a user.
+func (o *roleResourceType) Revoke(ctx context.Context, grant *v2.Grant) (annotations.Annotations, error) {
+	principal := grant.Principal
+	if principal.Id.ResourceType != resourceTypeUser.Id {
+		return nil, fmt.Errorf("linear-connector: only users can have roles revoked")
+	}
+
+	roleID := grant.Entitlement.Resource.Id.Resource
+	userID := principal.Id.Resource
+
+	switch roleID {
+	case roleAdmin:
+		// Demote admin to regular user
+		admin := false
+		err := o.client.UpdateUser(ctx, userID, &admin, nil)
+		if err != nil {
+			return nil, fmt.Errorf("linear-connector: failed to revoke admin role: %w", err)
+		}
+	case roleUser:
+		// Deactivate user (suspend)
+		active := false
+		err := o.client.UpdateUser(ctx, userID, nil, &active)
+		if err != nil {
+			return nil, fmt.Errorf("linear-connector: failed to suspend user: %w", err)
+		}
+	case roleGuest, roleOwner:
+		return nil, fmt.Errorf("linear-connector: %s role cannot be revoked via API", roleID)
+	default:
+		return nil, fmt.Errorf("linear-connector: unknown role: %s", roleID)
+	}
+
+	return nil, nil
+}
+
 func roleBuilder(client *linear.Client) *roleResourceType {
 	return &roleResourceType{
 		resourceType: resourceTypeRole,
