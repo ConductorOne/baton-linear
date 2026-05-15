@@ -509,6 +509,84 @@ func (c *Client) AddMemberToTeam(ctx context.Context, teamId, userId string) (st
 	return res.TeamMembership.ID, nil
 }
 
+// CreateOrganizationInvite invites a new user to the Linear workspace.
+// Returns the organization invite ID. The user becomes a User in Linear only after accepting.
+func (c *Client) CreateOrganizationInvite(ctx context.Context, email string, role string, teamIDs []string) (string, error) {
+	mutation := `mutation OrganizationInviteCreate($input: OrganizationInviteCreateInput!) {
+			organizationInviteCreate(input: $input) {
+				success
+				organizationInvite {
+					id
+				}
+			}
+		}`
+
+	input := map[string]interface{}{
+		"email": email,
+	}
+	if role != "" {
+		input["role"] = role
+	}
+	if len(teamIDs) > 0 {
+		input["teamIds"] = teamIDs
+	}
+
+	b := map[string]interface{}{
+		"query":     mutation,
+		"variables": map[string]interface{}{"input": input},
+	}
+
+	var res struct {
+		Data struct {
+			OrganizationInviteCreate struct {
+				Success            bool `json:"success"`
+				OrganizationInvite struct {
+					ID string `json:"id"`
+				} `json:"organizationInvite"`
+			} `json:"organizationInviteCreate"`
+		} `json:"data"`
+	}
+	resp, _, err := c.doRequest(ctx, b, &res)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if !res.Data.OrganizationInviteCreate.Success {
+		return "", fmt.Errorf("organizationInviteCreate returned success=false")
+	}
+
+	return res.Data.OrganizationInviteCreate.OrganizationInvite.ID, nil
+}
+
+// SuspendUser deactivates a user's account, revoking their access to the workspace
+// and invalidating their sessions. Reversible via UnsuspendUser. Requires admin/owner.
+func (c *Client) SuspendUser(ctx context.Context, userID string) (bool, error) {
+	mutation := `mutation UserSuspend($id: String!) {
+			userSuspend(id: $id) {
+				success
+			}
+		}`
+
+	b := map[string]interface{}{
+		"query":     mutation,
+		"variables": map[string]interface{}{"id": userID},
+	}
+
+	var res struct {
+		Data struct {
+			UserSuspend SuccessResponse `json:"userSuspend"`
+		} `json:"data"`
+	}
+	resp, _, err := c.doRequest(ctx, b, &res)
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+
+	return res.Data.UserSuspend.Success, nil
+}
+
 func (c *Client) RemoveTeamMembership(ctx context.Context, teamMembershipId string) (bool, error) {
 	mutation := `mutation TeamMembershipDelete($teamMembershipDeleteId: String!){
 			teamMembershipDelete(id: $teamMembershipDeleteId) {
