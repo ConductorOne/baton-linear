@@ -94,7 +94,7 @@ func (o *userResourceType) List(ctx context.Context, parentId *v2.ResourceId, to
 		return nil, "", nil, err
 	}
 
-	users, nextToken, _, rlData, err := o.client.GetUsers(ctx, linear.GetResourcesVars{First: resourcePageSize, After: bag.PageToken()})
+	users, nextToken, rlData, err := o.client.GetUsers(ctx, linear.GetResourcesVars{First: resourcePageSize, After: bag.PageToken()})
 	annotations.WithRateLimiting(rlData)
 	if err != nil {
 		return nil, "", annotations, fmt.Errorf("linear-connector: failed to list users: %w", err)

@@ -61,7 +61,7 @@ func (o *projectResourceType) List(ctx context.Context, parentId *v2.ResourceId,
 		return nil, "", nil, err
 	}
 
-	projects, nextToken, _, restApiRateLimit, err := o.client.GetProjects(ctx, linear.GetResourcesVars{First: resourcePageSize, After: bag.PageToken()})
+	projects, nextToken, restApiRateLimit, err := o.client.GetProjects(ctx, linear.GetResourcesVars{First: resourcePageSize, After: bag.PageToken()})
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("linear-connector: failed to list projects: %w", err)
 	}
@@ -130,7 +130,7 @@ func (o *projectResourceType) Grants(ctx context.Context, resource *v2.Resource,
 		return nil, "", nil, fmt.Errorf("error fetching project_id from project profile")
 	}
 
-	project, nextTokens, _, rlData, err := o.client.GetProject(
+	project, nextTokens, rlData, err := o.client.GetProject(
 		ctx,
 		linear.GetProjectVars{
 			ProjectId:  projectId,

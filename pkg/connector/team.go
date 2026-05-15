@@ -67,7 +67,7 @@ func (o *teamResourceType) List(ctx context.Context, parentId *v2.ResourceId, to
 		return nil, "", nil, err
 	}
 
-	teams, nextToken, _, rlData, err := o.client.GetTeams(ctx, linear.GetResourcesVars{After: bag.PageToken(), First: resourcePageSize})
+	teams, nextToken, rlData, err := o.client.GetTeams(ctx, linear.GetResourcesVars{After: bag.PageToken(), First: resourcePageSize})
 	annotations.WithRateLimiting(rlData)
 	if err != nil {
 		return nil, "", annotations, fmt.Errorf("linear-connector: failed to list teams: %w", err)
@@ -115,7 +115,7 @@ func (o *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, to
 		return nil, "", nil, err
 	}
 
-	team, nextToken, _, rlData, err := o.client.GetTeam(ctx, linear.GetTeamVars{TeamId: resource.Id.Resource, After: bag.PageToken(), First: resourcePageSize})
+	team, nextToken, rlData, err := o.client.GetTeam(ctx, linear.GetTeamVars{TeamId: resource.Id.Resource, After: bag.PageToken(), First: resourcePageSize})
 	annotations.WithRateLimiting(rlData)
 	if err != nil {
 		return nil, "", annotations, err

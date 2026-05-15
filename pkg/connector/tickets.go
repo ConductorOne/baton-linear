@@ -93,12 +93,12 @@ func (ln *Linear) createIssuePayloadFromTicket(ctx context.Context, ticket *v2.T
 		if label == "" {
 			continue
 		}
-		issueLabel, _, _, err := ln.client.GetIssueLabel(ctx, label)
+		issueLabel, _, err := ln.client.GetIssueLabel(ctx, label)
 		if err != nil {
 			return nil, fmt.Errorf("baton-linear: failed to get issue label: %w", err)
 		}
 		if issueLabel == nil {
-			issueLabel, _, _, err = ln.client.CreateIssueLabel(ctx, label)
+			issueLabel, _, err = ln.client.CreateIssueLabel(ctx, label)
 			if err != nil {
 				return nil, fmt.Errorf("baton-linear: failed to create issue label: %w", err)
 			}
@@ -129,14 +129,14 @@ func (ln *Linear) CreateTicket(ctx context.Context, ticket *v2.Ticket, schema *v
 }
 
 func (ln *Linear) GetTicketSchema(ctx context.Context, schemaID string) (*v2.TicketSchema, annotations.Annotations, error) {
-	teams, _, _, _, err := ln.client.ListTeamWorkflowStates(ctx, linear.GetTeamsVars{TeamIDs: []string{schemaID}, First: 2})
+	teams, _, _, err := ln.client.ListTeamWorkflowStates(ctx, linear.GetTeamsVars{TeamIDs: []string{schemaID}, First: 2})
 	if err != nil {
 		return nil, nil, fmt.Errorf("baton-linear: failed to list team workflow states: %w", err)
 	}
 	if len(teams) != 1 {
 		return nil, nil, fmt.Errorf("baton-linear: expected 1 team, got %d", len(teams))
 	}
-	fields, _, _, _, err := ln.client.ListIssueFields(ctx)
+	fields, _, _, err := ln.client.ListIssueFields(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("baton-linear: failed to list issue fields: %w", err)
 	}
@@ -153,7 +153,7 @@ func (ln *Linear) ListTicketSchemas(ctx context.Context, p *pagination.Token) ([
 		return nil, "", nil, err
 	}
 
-	teams, nextToken, _, rlData, err := ln.client.ListTeamWorkflowStates(ctx, linear.GetTeamsVars{TeamIDs: ln.ticketSchemaTeamIDs, After: bag.PageToken(), First: resourcePageSize})
+	teams, nextToken, rlData, err := ln.client.ListTeamWorkflowStates(ctx, linear.GetTeamsVars{TeamIDs: ln.ticketSchemaTeamIDs, After: bag.PageToken(), First: resourcePageSize})
 	annotations.WithRateLimiting(rlData)
 	if err != nil {
 		return nil, "", annotations, fmt.Errorf("baton-linear: failed to list teams: %w", err)
@@ -164,7 +164,7 @@ func (ln *Linear) ListTicketSchemas(ctx context.Context, p *pagination.Token) ([
 		return nil, "", annotations, err
 	}
 
-	fields, _, _, rlData, err := ln.client.ListIssueFields(ctx)
+	fields, _, rlData, err := ln.client.ListIssueFields(ctx)
 	annotations.WithRateLimiting(rlData)
 	if err != nil {
 		return nil, "", annotations, fmt.Errorf("baton-linear: failed to list issue fields: %w", err)
