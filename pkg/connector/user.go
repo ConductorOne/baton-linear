@@ -14,7 +14,11 @@ import (
 	sdkResource "github.com/conductorone/baton-sdk/pkg/types/resource"
 )
 
-var _ connectorbuilder.ResourceSyncer = (*userResourceType)(nil)
+var (
+	_ connectorbuilder.ResourceSyncer          = (*userResourceType)(nil)
+	_ connectorbuilder.AccountManagerLimited   = (*userResourceType)(nil)
+	_ connectorbuilder.ResourceDeleterLimited  = (*userResourceType)(nil)
+)
 
 const userRoleProfileKey = "user_role"
 
@@ -137,6 +141,101 @@ func (o *userResourceType) Grants(ctx context.Context, resource *v2.Resource, pt
 
 	rv = append(rv, gr)
 	return rv, "", nil, nil
+}
+
+func (o *userResourceType) CreateAccountCapabilityDetails(_ context.Context) (*v2.CredentialDetailsAccountProvisioning, annotations.Annotations, error) {
+	return &v2.CredentialDetailsAccountProvisioning{
+		SupportedCredentialOptions: []v2.CapabilityDetailCredentialOption{
+			v2.CapabilityDetailCredentialOption_CAPABILITY_DETAIL_CREDENTIAL_OPTION_NO_PASSWORD,
+		},
+		PreferredCredentialOption: v2.CapabilityDetailCredentialOption_CAPABILITY_DETAIL_CREDENTIAL_OPTION_NO_PASSWORD,
+	}, nil, nil
+}
+
+// CreateAccount provisions a new Linear user by sending a workspace invite. The
+// user only becomes a Linear User after they accept the invite, so this returns
+// an ActionRequiredResult — there is no resource yet.
+func (o *userResourceType) CreateAccount(
+	ctx context.Context,
+	accountInfo *v2.AccountInfo,
+	_ *v2.LocalCredentialOptions,
+) (connectorbuilder.CreateAccountResponse, []*v2.PlaintextData, annotations.Annotations, error) {
+	email := accountEmail(accountInfo)
+	if email == "" {
+		return nil, nil, nil, fmt.Errorf("baton-linear: email is required to create an invite")
+	}
+
+	role := accountRole(accountInfo)
+
+	inviteID, err := o.client.CreateOrganizationInvite(ctx, email, role, nil)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("baton-linear: failed to create organization invite: %w", err)
+	}
+
+	return &v2.CreateAccountResponse_ActionRequiredResult{
+		Resource:              nil,
+		Message:               fmt.Sprintf("Invitation sent to %s (invite ID: %s). The user must accept the invite to join the workspace.", email, inviteID),
+		IsCreateAccountResult: true,
+	}, nil, nil, nil
+}
+
+// Delete deprovisions a Linear user by suspending them. Linear does not delete
+// user records; userSuspend revokes workspace access and invalidates sessions.
+func (o *userResourceType) Delete(ctx context.Context, resourceId *v2.ResourceId) (annotations.Annotations, error) {
+	if resourceId.GetResourceType() != resourceTypeUser.Id {
+		return nil, fmt.Errorf("baton-linear: non-user resource passed to user delete: %s", resourceId.GetResourceType())
+	}
+
+	success, err := o.client.SuspendUser(ctx, resourceId.GetResource())
+	if err != nil {
+		return nil, fmt.Errorf("baton-linear: failed to suspend user: %w", err)
+	}
+	if !success {
+		return nil, fmt.Errorf("baton-linear: userSuspend returned success=false")
+	}
+	return nil, nil
+}
+
+// accountEmail extracts the invitee's email from AccountInfo, preferring the
+// primary email, then any email, then Login.
+func accountEmail(accountInfo *v2.AccountInfo) string {
+	if accountInfo == nil {
+		return ""
+	}
+	for _, e := range accountInfo.GetEmails() {
+		if e.GetIsPrimary() && e.GetAddress() != "" {
+			return e.GetAddress()
+		}
+	}
+	for _, e := range accountInfo.GetEmails() {
+		if e.GetAddress() != "" {
+			return e.GetAddress()
+		}
+	}
+	return accountInfo.GetLogin()
+}
+
+// accountRole extracts the requested Linear role from the profile. Defaults to
+// "user". Valid Linear values are admin, guest, user (owner is granted manually).
+func accountRole(accountInfo *v2.AccountInfo) string {
+	if accountInfo == nil {
+		return ""
+	}
+	profile := accountInfo.GetProfile()
+	if profile == nil {
+		return ""
+	}
+	field, ok := profile.GetFields()[userRoleProfileKey]
+	if !ok || field == nil {
+		return ""
+	}
+	v := strings.ToLower(strings.TrimSpace(field.GetStringValue()))
+	switch v {
+	case roleAdmin, roleGuest, roleUser:
+		return v
+	default:
+		return ""
+	}
 }
 
 func userBuilder(client *linear.Client) *userResourceType {
