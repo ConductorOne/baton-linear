@@ -515,11 +515,10 @@ func (c *Client) AddMemberToTeam(ctx context.Context, teamId, userId string) (st
 		} `json:"teamMembership"`
 	}
 	resp, _, e := c.doRequest(ctx, b, &res)
+	defer closeResponse(resp)
 	if e != nil {
 		return "", e
 	}
-
-	defer resp.Body.Close()
 
 	return res.TeamMembership.ID, nil
 }
@@ -562,10 +561,10 @@ func (c *Client) CreateOrganizationInvite(ctx context.Context, email string, rol
 		} `json:"data"`
 	}
 	resp, _, err := c.doRequest(ctx, b, &res)
+	defer closeResponse(resp)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
 
 	if !res.Data.OrganizationInviteCreate.Success {
 		return "", fmt.Errorf("organizationInviteCreate returned success=false")
@@ -594,10 +593,10 @@ func (c *Client) SuspendUser(ctx context.Context, userID string) (bool, error) {
 		} `json:"data"`
 	}
 	resp, _, err := c.doRequest(ctx, b, &res)
+	defer closeResponse(resp)
 	if err != nil {
 		return false, err
 	}
-	defer resp.Body.Close()
 
 	return res.Data.UserSuspend.Success, nil
 }
@@ -622,11 +621,10 @@ func (c *Client) RemoveTeamMembership(ctx context.Context, teamMembershipId stri
 		} `json:"data"`
 	}
 	resp, _, err := c.doRequest(ctx, b, &res)
+	defer closeResponse(resp)
 	if err != nil {
 		return false, err
 	}
-
-	defer resp.Body.Close()
 
 	return res.Data.TeamMembershipDelete.Success, nil
 }
@@ -823,11 +821,10 @@ func (c *Client) CreateIssue(ctx context.Context, payload CreateIssuePayload) (*
 		} `json:"data"`
 	}
 	resp, _, e := c.doRequest(ctx, b, &res)
+	defer closeResponse(resp)
 	if e != nil {
 		return nil, e
 	}
-
-	defer resp.Body.Close()
 
 	if !res.Data.IssueCreate.Success {
 		return nil, fmt.Errorf("failed to create issue")
@@ -880,11 +877,10 @@ func (c *Client) BulkCreateIssues(ctx context.Context, payloads []CreateIssuePay
 		} `json:"data"`
 	}
 	resp, _, e := c.doRequest(ctx, b, &res)
+	defer closeResponse(resp)
 	if e != nil {
 		return nil, e
 	}
-
-	defer resp.Body.Close()
 
 	return res.Data.IssueBatchCreate.Issues, nil
 }
@@ -922,11 +918,10 @@ func (c *Client) GetIssue(ctx context.Context, issueId string) (*Issue, error) {
 		} `json:"data"`
 	}
 	resp, _, e := c.doRequest(ctx, b, &res)
+	defer closeResponse(resp)
 	if e != nil {
 		return nil, e
 	}
-
-	defer resp.Body.Close()
 
 	return &res.Data.Issue, nil
 }
