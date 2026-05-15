@@ -59,7 +59,7 @@ func (o *orgResourceType) List(ctx context.Context, parentId *v2.ResourceId, tok
 		return nil, "", nil, err
 	}
 
-	org, nextTokens, _, restApiRateLimit, err := o.client.GetOrganization(ctx, paginationOptions)
+	org, nextTokens, restApiRateLimit, err := o.client.GetOrganization(ctx, paginationOptions)
 	annotations.WithRateLimiting(restApiRateLimit)
 	if err != nil {
 		return nil, "", annotations, fmt.Errorf("linear-connector: failed to list an organization: %w", err)
@@ -115,7 +115,7 @@ func (o *orgResourceType) Grants(ctx context.Context, resource *v2.Resource, tok
 		return nil, "", nil, err
 	}
 
-	org, nextTokens, _, rlData, err := o.client.GetOrganization(ctx, paginationOptions)
+	org, nextTokens, rlData, err := o.client.GetOrganization(ctx, paginationOptions)
 	if err != nil {
 		return nil, "", nil, err
 	}
