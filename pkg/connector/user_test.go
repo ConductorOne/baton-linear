@@ -29,7 +29,7 @@ func newTestUserBuilder(t *testing.T, handler http.HandlerFunc) *userResourceTyp
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
-	return userBuilder(client)
+	return userBuilder(client, false)
 }
 
 func TestUserCreateAccount_MissingEmail(t *testing.T) {

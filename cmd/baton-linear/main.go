@@ -7,6 +7,7 @@ import (
 
 	cfg "github.com/conductorone/baton-linear/pkg/config"
 	"github.com/conductorone/baton-linear/pkg/connector"
+	"github.com/conductorone/baton-sdk/pkg/cli"
 	configschema "github.com/conductorone/baton-sdk/pkg/config"
 	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
 	"github.com/conductorone/baton-sdk/pkg/connectorrunner"
@@ -20,7 +21,7 @@ var version = "dev"
 func main() {
 	ctx := context.Background()
 
-	_, cmd, err := configschema.DefineConfiguration(
+	_, cmd, err := configschema.DefineConfigurationV2(
 		ctx,
 		"baton-linear",
 		getConnector,
@@ -41,9 +42,17 @@ func main() {
 	}
 }
 
-func getConnector(ctx context.Context, lc *cfg.Linear) (types.ConnectorServer, error) {
+func getConnector(ctx context.Context, lc *cfg.Linear, runTimeOpts cli.RunTimeOpts) (types.ConnectorServer, error) {
 	l := ctxzap.Extract(ctx)
-	cb, err := connector.New(ctx, lc.ApiKey, lc.SkipProjects, lc.TicketSchemaTeamIdsFilter, lc.BaseUrl)
+
+	// Role grants are emitted from the user syncer, so the user builder needs
+	// to know whether the customer's sync filter includes the role resource
+	// type. WillSyncResourceType returns true when roles are explicitly
+	// selected or when no filter is set at all (e.g. local CLI runs).
+	connectorOpts := &cli.ConnectorOpts{SyncResourceTypeIDs: runTimeOpts.SyncResourceTypeIDs}
+	syncRoles := connectorOpts.WillSyncResourceType(connector.RoleResourceTypeID)
+
+	cb, err := connector.New(ctx, lc.ApiKey, lc.SkipProjects, lc.TicketSchemaTeamIdsFilter, lc.BaseUrl, syncRoles)
 	if err != nil {
 		l.Error("error creating connector", zap.Error(err))
 		return nil, err

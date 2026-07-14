@@ -12,6 +12,7 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 	"github.com/conductorone/baton-sdk/pkg/types/grant"
 	sdkResource "github.com/conductorone/baton-sdk/pkg/types/resource"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -238,9 +239,22 @@ func accountRole(accountInfo *v2.AccountInfo) string {
 	}
 }
 
-func userBuilder(client *linear.Client) *userResourceType {
+// userBuilder returns the user syncer. Users have no entitlements of their
+// own, so the user resource type always skips the entitlements pass. The only
+// grants users emit are role memberships, so when skipRoleGrants is true (the
+// role resource type is excluded from the sync) the grants pass is skipped
+// too — the role resources those grants target wouldn't exist in the sync.
+func userBuilder(client *linear.Client, skipRoleGrants bool) *userResourceType {
+	resourceType := proto.Clone(resourceTypeUser).(*v2.ResourceType)
+	userAnnos := annotations.Annotations(resourceType.GetAnnotations())
+	if skipRoleGrants {
+		userAnnos.Update(&v2.SkipEntitlementsAndGrants{})
+	} else {
+		userAnnos.Update(&v2.SkipEntitlements{})
+	}
+	resourceType.Annotations = userAnnos
 	return &userResourceType{
-		resourceType: resourceTypeUser,
+		resourceType: resourceType,
 		client:       client,
 	}
 }
