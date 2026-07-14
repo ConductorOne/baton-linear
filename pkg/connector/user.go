@@ -238,7 +238,17 @@ func accountRole(accountInfo *v2.AccountInfo) string {
 	}
 }
 
-func userBuilder(client *linear.Client) *userResourceType {
+// userBuilder returns the user syncer. Users have no entitlements of their
+// own, so the user resource type always skips the entitlements pass. The only
+// grants users emit are role memberships, so when skipRoleGrants is true (the
+// role resource type is excluded from the sync) the grants pass is skipped
+// too — the role resources those grants target wouldn't exist in the sync.
+func userBuilder(client *linear.Client, skipRoleGrants bool) *userResourceType {
+	if skipRoleGrants {
+		resourceTypeUser.Annotations = annotations.New(&v2.SkipEntitlementsAndGrants{})
+	} else {
+		resourceTypeUser.Annotations = annotations.New(&v2.SkipEntitlements{})
+	}
 	return &userResourceType{
 		resourceType: resourceTypeUser,
 		client:       client,

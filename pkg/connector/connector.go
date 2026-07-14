@@ -10,6 +10,11 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
 )
 
+// RoleResourceTypeID is exported because main.go uses it with
+// cli.ConnectorOpts.WillSyncResourceType to decide whether role grants
+// should be emitted from the user syncer.
+const RoleResourceTypeID = "role"
+
 var (
 	resourceTypeUser = &v2.ResourceType{
 		Id:          "user",
@@ -17,6 +22,8 @@ var (
 		Traits: []v2.ResourceType_Trait{
 			v2.ResourceType_TRAIT_USER,
 		},
+		// Annotations are set by userBuilder: SkipEntitlements by default, or
+		// SkipEntitlementsAndGrants when roles aren't being synced.
 	}
 	resourceTypeTeam = &v2.ResourceType{
 		Id:          "team",
@@ -33,7 +40,7 @@ var (
 		DisplayName: "Org",
 	}
 	resourceTypeRole = &v2.ResourceType{
-		Id:          "role",
+		Id:          RoleResourceTypeID,
 		DisplayName: "Role",
 		Traits:      []v2.ResourceType_Trait{v2.ResourceType_TRAIT_ROLE},
 	}
@@ -43,11 +50,16 @@ type Linear struct {
 	client              *linear.Client
 	skipProjects        bool
 	ticketSchemaTeamIDs []string
+	// skipRoleGrants is true when the customer's sync filter excludes the
+	// role resource type. The zero value (false) preserves the default
+	// behavior, so the zero-value Linear used as the capabilities stub in
+	// main.go advertises the standard user resource type.
+	skipRoleGrants bool
 }
 
 func (ln *Linear) ResourceSyncers(ctx context.Context) []connectorbuilder.ResourceSyncer {
 	resourceSyncers := []connectorbuilder.ResourceSyncer{
-		userBuilder(ln.client),
+		userBuilder(ln.client, ln.skipRoleGrants),
 		teamBuilder(ln.client),
 		orgBuilder(ln.client),
 		roleBuilder(ln.client),
@@ -78,8 +90,11 @@ func (ln *Linear) Validate(ctx context.Context) (annotations.Annotations, error)
 	return nil, nil
 }
 
-// New returns the Linear connector.
-func New(ctx context.Context, apiKey string, skipProjects bool, ticketSchemaTeamIDs []string, baseURL string) (*Linear, error) {
+// New returns the Linear connector. syncRoles reports whether the role
+// resource type will be synced under the current configuration (derived from
+// cli.ConnectorOpts.WillSyncResourceType in main.go); when false, the user
+// syncer skips emitting role grants.
+func New(ctx context.Context, apiKey string, skipProjects bool, ticketSchemaTeamIDs []string, baseURL string, syncRoles bool) (*Linear, error) {
 	client, err := linear.NewClient(ctx, apiKey, baseURL)
 	if err != nil {
 		return nil, err
@@ -89,5 +104,6 @@ func New(ctx context.Context, apiKey string, skipProjects bool, ticketSchemaTeam
 		client:              client,
 		skipProjects:        skipProjects,
 		ticketSchemaTeamIDs: ticketSchemaTeamIDs,
+		skipRoleGrants:      !syncRoles,
 	}, nil
 }
