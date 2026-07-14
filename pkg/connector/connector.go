@@ -22,8 +22,9 @@ var (
 		Traits: []v2.ResourceType_Trait{
 			v2.ResourceType_TRAIT_USER,
 		},
-		// Annotations are set by userBuilder: SkipEntitlements by default, or
-		// SkipEntitlementsAndGrants when roles aren't being synced.
+		// userBuilder clones this and adds SkipEntitlements by default, or
+		// SkipEntitlementsAndGrants when roles aren't being synced. Any
+		// annotations declared here are preserved on the clone.
 	}
 	resourceTypeTeam = &v2.ResourceType{
 		Id:          "team",

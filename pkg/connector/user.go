@@ -12,6 +12,7 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 	"github.com/conductorone/baton-sdk/pkg/types/grant"
 	sdkResource "github.com/conductorone/baton-sdk/pkg/types/resource"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -244,13 +245,16 @@ func accountRole(accountInfo *v2.AccountInfo) string {
 // role resource type is excluded from the sync) the grants pass is skipped
 // too — the role resources those grants target wouldn't exist in the sync.
 func userBuilder(client *linear.Client, skipRoleGrants bool) *userResourceType {
+	resourceType := proto.Clone(resourceTypeUser).(*v2.ResourceType)
+	userAnnos := annotations.Annotations(resourceType.GetAnnotations())
 	if skipRoleGrants {
-		resourceTypeUser.Annotations = annotations.New(&v2.SkipEntitlementsAndGrants{})
+		userAnnos.Update(&v2.SkipEntitlementsAndGrants{})
 	} else {
-		resourceTypeUser.Annotations = annotations.New(&v2.SkipEntitlements{})
+		userAnnos.Update(&v2.SkipEntitlements{})
 	}
+	resourceType.Annotations = userAnnos
 	return &userResourceType{
-		resourceType: resourceTypeUser,
+		resourceType: resourceType,
 		client:       client,
 	}
 }
