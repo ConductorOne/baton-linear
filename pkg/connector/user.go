@@ -16,9 +16,9 @@ import (
 )
 
 var (
-	_ connectorbuilder.ResourceSyncer          = (*userResourceType)(nil)
-	_ connectorbuilder.AccountManagerLimited   = (*userResourceType)(nil)
-	_ connectorbuilder.ResourceDeleterLimited  = (*userResourceType)(nil)
+	_ connectorbuilder.ResourceSyncer         = (*userResourceType)(nil)
+	_ connectorbuilder.AccountManagerLimited  = (*userResourceType)(nil)
+	_ connectorbuilder.ResourceDeleterLimited = (*userResourceType)(nil)
 )
 
 const userRoleProfileKey = "user_role"
@@ -65,9 +65,7 @@ func userResource(ctx context.Context, user *linear.User, parentResourceID *v2.R
 	}
 
 	userTraitOptions := []sdkResource.UserTraitOption{
-		sdkResource.WithUserProfile(profile),
 		sdkResource.WithEmail(user.Email, true),
-		sdkResource.WithStatus(v2.UserTrait_Status_STATUS_ENABLED),
 	}
 
 	ret, err := sdkResource.NewUserResource(
@@ -75,6 +73,8 @@ func userResource(ctx context.Context, user *linear.User, parentResourceID *v2.R
 		resourceTypeUser,
 		user.ID,
 		userTraitOptions,
+		sdkResource.WithResourceProfile(profile),
+		sdkResource.WithResourceStatus(v2.Status_RESOURCE_STATUS_ENABLED, ""),
 		sdkResource.WithParentResourceID(parentResourceID),
 	)
 	if err != nil {
@@ -125,11 +125,7 @@ func (o *userResourceType) Entitlements(_ context.Context, _ *v2.Resource, _ *pa
 
 func (o *userResourceType) Grants(ctx context.Context, resource *v2.Resource, pt *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
 	var rv []*v2.Grant
-	userTrait, err := sdkResource.GetUserTrait(resource)
-	if err != nil {
-		return nil, "", nil, fmt.Errorf("list-grants: Failed to get user trait from user: %w", err)
-	}
-	userProfile := userTrait.GetProfile()
+	userProfile := sdkResource.GetProfile(resource)
 	userRole, present := sdkResource.GetProfileStringValue(userProfile, userRoleProfileKey)
 	if !present {
 		return nil, "", nil, fmt.Errorf("list-grants: user role was not present on profile")

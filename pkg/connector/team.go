@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	_ connectorbuilder.ResourceSyncer = (*teamResourceType)(nil)
+	_ connectorbuilder.ResourceSyncer      = (*teamResourceType)(nil)
 	_ connectorbuilder.ResourceProvisioner = (*teamResourceType)(nil)
 )
 
@@ -40,13 +40,14 @@ func teamResource(team *linear.Team, parentResourceID *v2.ResourceId) (*v2.Resou
 		"team_name": team.Name,
 	}
 
-	groupTraitOptions := []rs.GroupTraitOption{rs.WithGroupProfile(profile)}
+	groupTraitOptions := []rs.GroupTraitOption{}
 
 	ret, err := rs.NewGroupResource(
 		team.Name,
 		resourceTypeTeam,
 		team.ID,
 		groupTraitOptions,
+		rs.WithResourceProfile(profile),
 		rs.WithParentResourceID(parentResourceID),
 	)
 	if err != nil {
