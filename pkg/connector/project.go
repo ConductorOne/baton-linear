@@ -37,13 +37,14 @@ func projectResource(project *linear.Project, parentId *v2.ResourceId) (*v2.Reso
 		"project_slug": project.SlugID,
 		"project_id":   project.ID,
 	}
-	groupTraitOptions := []rs.GroupTraitOption{rs.WithGroupProfile(profile)}
+	groupTraitOptions := []rs.GroupTraitOption{}
 
 	ret, err := rs.NewGroupResource(
 		project.Name,
 		resourceTypeProject,
 		project.ID,
 		groupTraitOptions,
+		rs.WithResourceProfile(profile),
 		rs.WithParentResourceID(parentId),
 	)
 
@@ -120,12 +121,7 @@ func (o *projectResourceType) Grants(ctx context.Context, resource *v2.Resource,
 		return nil, "", nil, err
 	}
 
-	projectTrait, err := rs.GetGroupTrait(resource)
-	if err != nil {
-		return nil, "", nil, err
-	}
-
-	projectId, ok := rs.GetProfileStringValue(projectTrait.Profile, "project_id")
+	projectId, ok := rs.GetProfileStringValue(rs.GetProfile(resource), "project_id")
 	if !ok {
 		return nil, "", nil, fmt.Errorf("error fetching project_id from project profile")
 	}
