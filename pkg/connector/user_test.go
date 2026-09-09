@@ -32,6 +32,42 @@ func newTestUserBuilder(t *testing.T, handler http.HandlerFunc) *userResourceTyp
 	return userBuilder(client, false)
 }
 
+func TestUserResource_Status(t *testing.T) {
+	tests := []struct {
+		name       string
+		active     bool
+		wantStatus v2.Status_ResourceStatus
+	}{
+		{
+			name:       "active user is enabled",
+			active:     true,
+			wantStatus: v2.Status_RESOURCE_STATUS_ENABLED,
+		},
+		{
+			name:       "suspended user is disabled",
+			active:     false,
+			wantStatus: v2.Status_RESOURCE_STATUS_DISABLED,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resource, err := userResource(context.Background(), &linear.User{
+				ID:     "user-1",
+				Name:   "Test User",
+				Email:  "test@example.com",
+				Active: tt.active,
+			}, &v2.ResourceId{ResourceType: resourceTypeOrg.Id, Resource: "org-1"})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got := resource.GetStatus().GetStatus(); got != tt.wantStatus {
+				t.Errorf("status: want %v got %v", tt.wantStatus, got)
+			}
+		})
+	}
+}
+
 func TestUserCreateAccount_MissingEmail(t *testing.T) {
 	ub := newTestUserBuilder(t, func(w http.ResponseWriter, r *http.Request) {
 		t.Error("API should not be called when email is missing")
