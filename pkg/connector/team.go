@@ -128,8 +128,7 @@ func (o *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, to
 	}
 
 	for _, membership := range team.Memberships.Nodes {
-		membershipCopy := membership
-		ur, err := userResource(ctx, &membershipCopy.User, resource.Id)
+		userID, err := rs.NewResourceID(resourceTypeUser, membership.User.ID)
 		if err != nil {
 			return nil, "", annotations, err
 		}
@@ -138,7 +137,7 @@ func (o *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, to
 			"membership_id": membership.ID,
 		}
 
-		grant := grant.NewGrant(resource, memberEntitlement, ur.Id, grant.WithGrantMetadata(metadata))
+		grant := grant.NewGrant(resource, memberEntitlement, userID, grant.WithGrantMetadata(metadata))
 		rv = append(rv, grant)
 	}
 

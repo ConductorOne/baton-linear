@@ -67,6 +67,10 @@ func userResource(ctx context.Context, user *linear.User, parentResourceID *v2.R
 	userTraitOptions := []sdkResource.UserTraitOption{
 		sdkResource.WithEmail(user.Email, true),
 	}
+	status := v2.Status_RESOURCE_STATUS_DISABLED
+	if user.Active {
+		status = v2.Status_RESOURCE_STATUS_ENABLED
+	}
 
 	ret, err := sdkResource.NewUserResource(
 		user.Name,
@@ -74,7 +78,7 @@ func userResource(ctx context.Context, user *linear.User, parentResourceID *v2.R
 		user.ID,
 		userTraitOptions,
 		sdkResource.WithResourceProfile(profile),
-		sdkResource.WithResourceStatus(v2.Status_RESOURCE_STATUS_ENABLED, ""),
+		sdkResource.WithResourceStatus(status, ""),
 		sdkResource.WithParentResourceID(parentResourceID),
 	)
 	if err != nil {

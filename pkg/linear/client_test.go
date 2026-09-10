@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -38,6 +39,103 @@ func newTestClient(t *testing.T, handler http.HandlerFunc) (*Client, *httptest.S
 		t.Fatalf("failed to create client: %v", err)
 	}
 	return client, server
+}
+
+func TestGetUsersIncludesDisabled(t *testing.T) {
+	client, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Query string `json:"query"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatalf("failed to decode request body: %v", err)
+		}
+		if !strings.Contains(req.Query, "includeDisabled: true") {
+			t.Errorf("users query must include disabled users: %s", req.Query)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":{"users":{"nodes":[{"id":"user-1","name":"Suspended User","active":false}],"pageInfo":{"hasNextPage":false}}}}`))
+	})
+
+	users, _, _, err := client.GetUsers(context.Background(), GetResourcesVars{First: 100})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(users) != 1 {
+		t.Fatalf("users: want 1 got %d", len(users))
+	}
+	if users[0].Active {
+		t.Error("expected suspended user to be inactive")
+	}
+}
+
+func TestGetOrganizationIncludesDisabledUsers(t *testing.T) {
+	client, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Query string `json:"query"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatalf("failed to decode request body: %v", err)
+		}
+		if !strings.Contains(req.Query, "users(after: $usersAfter, first: $first, includeDisabled: true)") {
+			t.Errorf("organization users query must include disabled users: %s", req.Query)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"data": {
+				"organization": {
+					"id": "org-1",
+					"users": {
+						"nodes": [{"id": "user-1", "active": false}],
+						"pageInfo": {"hasNextPage": false}
+					},
+					"teams": {"nodes": [], "pageInfo": {"hasNextPage": false}}
+				}
+			}
+		}`))
+	})
+
+	organization, _, _, err := client.GetOrganization(context.Background(), PaginationVars{First: 100})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(organization.Users.Nodes) != 1 {
+		t.Fatalf("users: want 1 got %d", len(organization.Users.Nodes))
+	}
+}
+
+func TestGetProjectIncludesDisabledMembers(t *testing.T) {
+	client, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Query string `json:"query"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatalf("failed to decode request body: %v", err)
+		}
+		if !strings.Contains(req.Query, "members(after: $usersAfter, first: $first, includeDisabled: true)") {
+			t.Errorf("project members query must include disabled users: %s", req.Query)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"data": {
+				"project": {
+					"id": "project-1",
+					"members": {
+						"nodes": [{"id": "user-1", "active": false}],
+						"pageInfo": {"hasNextPage": false}
+					},
+					"teams": {"nodes": [], "pageInfo": {"hasNextPage": false}}
+				}
+			}
+		}`))
+	})
+
+	project, _, _, err := client.GetProject(context.Background(), GetProjectVars{ProjectId: "project-1", First: 100})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(project.Members.Nodes) != 1 {
+		t.Fatalf("members: want 1 got %d", len(project.Members.Nodes))
+	}
 }
 
 func TestCreateOrganizationInvite(t *testing.T) {
