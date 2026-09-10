@@ -12,7 +12,7 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 	ent "github.com/conductorone/baton-sdk/pkg/types/entitlement"
 	grant "github.com/conductorone/baton-sdk/pkg/types/grant"
-	resource "github.com/conductorone/baton-sdk/pkg/types/resource"
+	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
 )
 
 var _ connectorbuilder.ResourceSyncer = (*orgResourceType)(nil)
@@ -28,14 +28,14 @@ func (o *orgResourceType) ResourceType(_ context.Context) *v2.ResourceType {
 
 // Create a new connector resource for a Linear organization.
 func orgResource(org *linear.Organization, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
-	orgOptions := []resource.ResourceOption{
-		resource.WithAnnotation(
+	orgOptions := []rs.ResourceOption{
+		rs.WithAnnotation(
 			&v2.ChildResourceType{ResourceTypeId: resourceTypeUser.Id},
 			&v2.ChildResourceType{ResourceTypeId: resourceTypeTeam.Id},
 			&v2.ChildResourceType{ResourceTypeId: resourceTypeRole.Id}),
-		resource.WithParentResourceID(parentResourceID)}
+		rs.WithParentResourceID(parentResourceID)}
 
-	orgResource, err := resource.NewResource(
+	orgResource, err := rs.NewResource(
 		org.Name,
 		resourceTypeOrg,
 		org.ID,
@@ -135,13 +135,12 @@ func (o *orgResourceType) Grants(ctx context.Context, resource *v2.Resource, tok
 	}
 
 	for _, user := range org.Users.Nodes {
-		userCopy := user
-		ur, err := userResource(ctx, &userCopy, resource.Id)
+		userID, err := rs.NewResourceID(resourceTypeUser, user.ID)
 		if err != nil {
 			return nil, "", nil, err
 		}
 
-		membershipGrant := grant.NewGrant(resource, membership, ur.Id)
+		membershipGrant := grant.NewGrant(resource, membership, userID)
 		rv = append(rv, membershipGrant)
 	}
 

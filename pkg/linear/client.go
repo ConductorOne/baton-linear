@@ -310,7 +310,7 @@ func (c *Client) GetOrganization(ctx context.Context, paginationVars PaginationV
 						endCursor
 					}
 				}
-				users(after: $usersAfter, first: $first) {
+				users(after: $usersAfter, first: $first, includeDisabled: true) {
 					nodes {
 						id
 						admin

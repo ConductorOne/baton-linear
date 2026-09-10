@@ -155,13 +155,12 @@ func (o *projectResourceType) Grants(ctx context.Context, resource *v2.Resource,
 
 	var rv []*v2.Grant
 	for _, member := range project.Members.Nodes {
-		memberCopy := member
-		ur, err := userResource(ctx, &memberCopy, resource.Id)
+		userID, err := rs.NewResourceID(resourceTypeUser, member.ID)
 		if err != nil {
 			return nil, "", nil, err
 		}
 
-		grant := grant.NewGrant(resource, membership, ur.Id)
+		grant := grant.NewGrant(resource, membership, userID)
 		rv = append(rv, grant)
 	}
 

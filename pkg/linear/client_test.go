@@ -68,6 +68,41 @@ func TestGetUsersIncludesDisabled(t *testing.T) {
 	}
 }
 
+func TestGetOrganizationIncludesDisabledUsers(t *testing.T) {
+	client, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Query string `json:"query"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatalf("failed to decode request body: %v", err)
+		}
+		if !strings.Contains(req.Query, "users(after: $usersAfter, first: $first, includeDisabled: true)") {
+			t.Errorf("organization users query must include disabled users: %s", req.Query)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"data": {
+				"organization": {
+					"id": "org-1",
+					"users": {
+						"nodes": [{"id": "user-1", "active": false}],
+						"pageInfo": {"hasNextPage": false}
+					},
+					"teams": {"nodes": [], "pageInfo": {"hasNextPage": false}}
+				}
+			}
+		}`))
+	})
+
+	organization, _, _, err := client.GetOrganization(context.Background(), PaginationVars{First: 100})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(organization.Users.Nodes) != 1 {
+		t.Fatalf("users: want 1 got %d", len(organization.Users.Nodes))
+	}
+}
+
 func TestCreateOrganizationInvite(t *testing.T) {
 	tests := []struct {
 		name         string
