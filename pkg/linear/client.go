@@ -167,7 +167,7 @@ type CreateIssuePayload struct {
 // GetUsers returns all users from Linear organization.
 func (c *Client) GetUsers(ctx context.Context, getResourceVars GetResourcesVars) ([]User, string, *v2.RateLimitDescription, error) {
 	query := `query Users($after: String, $first: Int) {
-			users(after: $after, first: $first) {
+			users(after: $after, first: $first, includeDisabled: true) {
 				nodes {
 					active
 					admin
