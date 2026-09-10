@@ -424,7 +424,7 @@ func (c *Client) GetProject(ctx context.Context, getProjectVars GetProjectVars) 
 						endCursor
 					}
 				}
-				members(after: $usersAfter, first: $first) {
+				members(after: $usersAfter, first: $first, includeDisabled: true) {
 					nodes {
 						id
 						name
