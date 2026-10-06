@@ -171,6 +171,7 @@ func (c *Client) GetUsers(ctx context.Context, getResourceVars GetResourcesVars)
 				nodes {
 					active
 					admin
+					app
 					displayName
 					email
 					guest

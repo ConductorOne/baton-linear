@@ -10,6 +10,7 @@ import (
 
 	"github.com/conductorone/baton-linear/pkg/linear"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
+	sdkResource "github.com/conductorone/baton-sdk/pkg/types/resource"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -63,6 +64,48 @@ func TestUserResource_Status(t *testing.T) {
 			}
 			if got := resource.GetStatus().GetStatus(); got != tt.wantStatus {
 				t.Errorf("status: want %v got %v", tt.wantStatus, got)
+			}
+		})
+	}
+}
+
+func TestUserResource_AccountType(t *testing.T) {
+	tests := []struct {
+		name        string
+		app         bool
+		wantService bool
+	}{
+		{
+			name:        "human user is not a service account",
+			app:         false,
+			wantService: false,
+		},
+		{
+			name:        "app user is a service account",
+			app:         true,
+			wantService: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resource, err := userResource(context.Background(), &linear.User{
+				ID:     "user-1",
+				Name:   "Test User",
+				Email:  "test@example.com",
+				Active: true,
+				App:    tt.app,
+			}, &v2.ResourceId{ResourceType: resourceTypeOrg.Id, Resource: "org-1"})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			userTrait, err := sdkResource.GetUserTrait(resource)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			got := userTrait.GetAccountType() == v2.UserTrait_ACCOUNT_TYPE_SERVICE
+			if got != tt.wantService {
+				t.Errorf("service account: want %v got %v (account type %v)", tt.wantService, got, userTrait.GetAccountType())
 			}
 		})
 	}

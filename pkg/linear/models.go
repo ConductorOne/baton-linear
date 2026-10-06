@@ -45,6 +45,7 @@ type Organization struct {
 type User struct {
 	Active       bool         `json:"active"`
 	Admin        bool         `json:"admin"`
+	App          bool         `json:"app"`
 	DisplayName  string       `json:"displayName"`
 	Email        string       `json:"email"`
 	Guest        bool         `json:"guest"`
