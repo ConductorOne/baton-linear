@@ -67,6 +67,9 @@ func userResource(ctx context.Context, user *linear.User, parentResourceID *v2.R
 	userTraitOptions := []sdkResource.UserTraitOption{
 		sdkResource.WithEmail(user.Email, true),
 	}
+	if user.App {
+		userTraitOptions = append(userTraitOptions, sdkResource.WithAccountType(v2.UserTrait_ACCOUNT_TYPE_SERVICE))
+	}
 	status := v2.Status_RESOURCE_STATUS_DISABLED
 	if user.Active {
 		status = v2.Status_RESOURCE_STATUS_ENABLED

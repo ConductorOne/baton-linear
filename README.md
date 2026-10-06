@@ -39,6 +39,7 @@ baton resources
 `baton-linear` pulls down information about the following Linear resources:
 - Organization
 - Users
+- App actors (users)
 - Projects
 - Teams
 
