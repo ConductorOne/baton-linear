@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
+	"time"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/uhttp"
@@ -552,6 +554,7 @@ func (c *Client) CreateOrganizationInvite(ctx context.Context, email string, rol
 	}
 
 	var res struct {
+		GraphQLError
 		Data struct {
 			OrganizationInviteCreate struct {
 				Success            bool `json:"success"`
@@ -568,10 +571,117 @@ func (c *Client) CreateOrganizationInvite(ctx context.Context, email string, rol
 	}
 
 	if !res.Data.OrganizationInviteCreate.Success {
+		// Linear reports mutation failures as GraphQL errors on a 200 response.
+		if res.HasErrors() {
+			return "", fmt.Errorf("organizationInviteCreate failed: %s", res.Message())
+		}
 		return "", fmt.Errorf("organizationInviteCreate returned success=false")
 	}
 
 	return res.Data.OrganizationInviteCreate.OrganizationInvite.ID, nil
+}
+
+// GetUserByEmail returns the workspace user with the given email, including
+// suspended users, or nil if there is none.
+func (c *Client) GetUserByEmail(ctx context.Context, email string) (*User, error) {
+	query := `query UserByEmail($email: String!) {
+			users(filter: {email: {eqIgnoreCase: $email}}, includeDisabled: true, first: 1) {
+				nodes {
+					active
+					admin
+					app
+					displayName
+					email
+					guest
+					id
+					name
+					organization {
+						id
+					}
+					owner
+				}
+			}
+		}`
+	b := map[string]interface{}{
+		"query":     query,
+		"variables": map[string]interface{}{"email": email},
+	}
+
+	var res GraphQLUsersResponse
+	resp, _, err := c.doRequest(ctx, b, &res)
+	defer closeResponse(resp)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(res.Data.Users.Nodes) == 0 {
+		return nil, nil
+	}
+	return &res.Data.Users.Nodes[0], nil
+}
+
+// GetPendingOrganizationInvite returns the unaccepted, unexpired workspace
+// invite for the given email, or nil if there is none.
+func (c *Client) GetPendingOrganizationInvite(ctx context.Context, email string) (*OrganizationInvite, error) {
+	query := `query OrganizationInvites($after: String, $first: Int) {
+			organizationInvites(after: $after, first: $first) {
+				nodes {
+					id
+					email
+					acceptedAt
+					expiresAt
+				}
+				pageInfo {
+					hasNextPage
+					endCursor
+				}
+			}
+		}`
+
+	now := time.Now()
+	var after string
+	for {
+		vars := map[string]interface{}{"first": 100}
+		if after != "" {
+			vars["after"] = after
+		}
+		b := map[string]interface{}{
+			"query":     query,
+			"variables": vars,
+		}
+
+		var res struct {
+			Data struct {
+				OrganizationInvites struct {
+					Nodes    []OrganizationInvite `json:"nodes"`
+					PageInfo PageInfo             `json:"pageInfo"`
+				} `json:"organizationInvites"`
+			} `json:"data"`
+		}
+		resp, _, err := c.doRequest(ctx, b, &res)
+		closeResponse(resp)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, invite := range res.Data.OrganizationInvites.Nodes {
+			if !strings.EqualFold(invite.Email, email) || invite.AcceptedAt != "" {
+				continue
+			}
+			if invite.ExpiresAt != "" {
+				expiresAt, err := time.Parse(time.RFC3339, invite.ExpiresAt)
+				if err == nil && expiresAt.Before(now) {
+					continue
+				}
+			}
+			return &invite, nil
+		}
+
+		if !res.Data.OrganizationInvites.PageInfo.HasNextPage {
+			return nil, nil
+		}
+		after = res.Data.OrganizationInvites.PageInfo.EndCursor
+	}
 }
 
 // SuspendUser deactivates a user's account, revoking their access to the workspace
@@ -1071,13 +1181,33 @@ func (c *Client) doRequest(ctx context.Context, body interface{}, res interface{
 	}
 
 	resp, err := c.httpClient.Do(req, doOptions...)
+	if err == nil || resp == nil {
+		return resp, rlData, err
+	}
 
-	// Linear returns 400 when rate limited, so change it to a retryable error
-	if err != nil && resp != nil && (resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusTooManyRequests) {
+	// Linear signals rate limiting with a 400 rather than a 429, so change it to a
+	// retryable error. Other 400s are invalid requests and must not be retried.
+	if resp.StatusCode == http.StatusTooManyRequests || (resp.StatusCode == http.StatusBadRequest && isRateLimited(resp, &gqlErr)) {
 		resp.StatusCode = http.StatusTooManyRequests
 
 		rlData.Status = v2.RateLimitDescription_STATUS_OVERLIMIT
 		return resp, rlData, uhttp.WrapErrorsWithRateLimitInfo(codes.Unavailable, resp, err)
 	}
+
+	if gqlErr.HasErrors() {
+		err = fmt.Errorf("%w: %s", err, gqlErr.Message())
+	}
 	return resp, rlData, err
+}
+
+func isRateLimited(resp *http.Response, gqlErr *GraphQLError) bool {
+	if gqlErr.IsRateLimited() {
+		return true
+	}
+	for _, header := range []string{"X-RateLimit-Requests-Remaining", "X-RateLimit-Complexity-Remaining"} {
+		if resp.Header.Get(header) == "0" {
+			return true
+		}
+	}
+	return false
 }

@@ -124,16 +124,40 @@ func TestUserCreateAccount_MissingEmail(t *testing.T) {
 	}
 }
 
-func TestUserCreateAccount_FromPrimaryEmail(t *testing.T) {
-	var seenInput map[string]interface{}
-	ub := newTestUserBuilder(t, func(w http.ResponseWriter, r *http.Request) {
+// createAccountHandler serves the user lookup, pending-invite lookup and invite
+// mutation that CreateAccount issues. onInvite is nil when no invite is expected.
+func createAccountHandler(t *testing.T, users, invites, inviteResponse string, onInvite func(input map[string]interface{})) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		var req map[string]interface{}
 		_ = decodeJSON(t, r, &req)
-		vars := req["variables"].(map[string]interface{})
-		seenInput = vars["input"].(map[string]interface{})
+		query, _ := req["query"].(string)
+		vars, _ := req["variables"].(map[string]interface{})
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"data":{"organizationInviteCreate":{"success":true,"organizationInvite":{"id":"inv-abc"}}}}`))
-	})
+		switch {
+		case strings.Contains(query, "UserByEmail"):
+			_, _ = w.Write([]byte(`{"data":{"users":{"nodes":` + users + `}}}`))
+		case strings.Contains(query, "organizationInvites("):
+			_, _ = w.Write([]byte(`{"data":{"organizationInvites":{"nodes":` + invites + `,"pageInfo":{"hasNextPage":false}}}}`))
+		case strings.Contains(query, "organizationInviteCreate"):
+			if onInvite == nil {
+				t.Error("invite should not be sent")
+			} else {
+				onInvite(vars["input"].(map[string]interface{}))
+			}
+			_, _ = w.Write([]byte(inviteResponse))
+		default:
+			t.Errorf("unexpected query: %s", query)
+		}
+	}
+}
+
+const inviteSuccess = `{"data":{"organizationInviteCreate":{"success":true,"organizationInvite":{"id":"inv-1"}}}}`
+
+func TestUserCreateAccount_FromPrimaryEmail(t *testing.T) {
+	var seenInput map[string]interface{}
+	ub := newTestUserBuilder(t, createAccountHandler(t, `[]`, `[]`,
+		`{"data":{"organizationInviteCreate":{"success":true,"organizationInvite":{"id":"inv-abc"}}}}`,
+		func(input map[string]interface{}) { seenInput = input }))
 
 	info := &v2.AccountInfo{
 		Emails: []*v2.AccountInfo_Email{
@@ -162,14 +186,8 @@ func TestUserCreateAccount_FromPrimaryEmail(t *testing.T) {
 
 func TestUserCreateAccount_FallsBackToLogin(t *testing.T) {
 	var seenEmail interface{}
-	ub := newTestUserBuilder(t, func(w http.ResponseWriter, r *http.Request) {
-		var req map[string]interface{}
-		_ = decodeJSON(t, r, &req)
-		vars := req["variables"].(map[string]interface{})
-		seenEmail = vars["input"].(map[string]interface{})["email"]
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"data":{"organizationInviteCreate":{"success":true,"organizationInvite":{"id":"inv-1"}}}}`))
-	})
+	ub := newTestUserBuilder(t, createAccountHandler(t, `[]`, `[]`, inviteSuccess,
+		func(input map[string]interface{}) { seenEmail = input["email"] }))
 
 	info := &v2.AccountInfo{Login: "login@example.com"}
 	if _, _, _, err := ub.CreateAccount(context.Background(), info, nil); err != nil {
@@ -195,14 +213,8 @@ func TestUserCreateAccount_RoleFromProfile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.profileRole, func(t *testing.T) {
 			var seenRole interface{}
-			ub := newTestUserBuilder(t, func(w http.ResponseWriter, r *http.Request) {
-				var req map[string]interface{}
-				_ = decodeJSON(t, r, &req)
-				vars := req["variables"].(map[string]interface{})
-				seenRole = vars["input"].(map[string]interface{})["role"]
-				w.Header().Set("Content-Type", "application/json")
-				_, _ = w.Write([]byte(`{"data":{"organizationInviteCreate":{"success":true,"organizationInvite":{"id":"inv-1"}}}}`))
-			})
+			ub := newTestUserBuilder(t, createAccountHandler(t, `[]`, `[]`, inviteSuccess,
+				func(input map[string]interface{}) { seenRole = input["role"] }))
 
 			profile, err := structpb.NewStruct(map[string]interface{}{
 				userRoleProfileKey: tt.profileRole,
@@ -221,6 +233,72 @@ func TestUserCreateAccount_RoleFromProfile(t *testing.T) {
 				t.Errorf("role: want %v got %v", tt.wantRole, seenRole)
 			}
 		})
+	}
+}
+
+func TestUserCreateAccount_ExistingUser(t *testing.T) {
+	ub := newTestUserBuilder(t, createAccountHandler(t,
+		`[{"id":"user-1","name":"Existing User","email":"existing@example.com","active":true,"organization":{"id":"org-1"}}]`,
+		`[]`, "", nil))
+
+	info := &v2.AccountInfo{Emails: []*v2.AccountInfo_Email{{Address: "Existing@example.com", IsPrimary: true}}}
+	resp, _, _, err := ub.CreateAccount(context.Background(), info, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	exists, ok := resp.(*v2.CreateAccountResponse_AlreadyExistsResult)
+	if !ok {
+		t.Fatalf("expected AlreadyExistsResult, got %T", resp)
+	}
+	if got := exists.Resource.GetId().GetResource(); got != "user-1" {
+		t.Errorf("resource ID: want user-1 got %s", got)
+	}
+	if got := exists.Resource.GetParentResourceId().GetResource(); got != "org-1" {
+		t.Errorf("parent resource ID: want org-1 got %s", got)
+	}
+}
+
+func TestUserCreateAccount_SuspendedUser(t *testing.T) {
+	ub := newTestUserBuilder(t, createAccountHandler(t,
+		`[{"id":"user-1","name":"Suspended User","email":"suspended@example.com","active":false,"organization":{"id":"org-1"}}]`,
+		`[]`, "", nil))
+
+	info := &v2.AccountInfo{Login: "suspended@example.com"}
+	_, _, _, err := ub.CreateAccount(context.Background(), info, nil)
+	if err == nil || !strings.Contains(err.Error(), "suspended") {
+		t.Fatalf("expected suspended-account error, got: %v", err)
+	}
+}
+
+func TestUserCreateAccount_PendingInvite(t *testing.T) {
+	ub := newTestUserBuilder(t, createAccountHandler(t, `[]`,
+		`[{"id":"inv-old","email":"pending@example.com","acceptedAt":null,"expiresAt":"2000-01-01T00:00:00.000Z"},`+
+			`{"id":"inv-pending","email":"Pending@example.com","acceptedAt":null,"expiresAt":"2999-01-01T00:00:00.000Z"}]`,
+		"", nil))
+
+	info := &v2.AccountInfo{Login: "pending@example.com"}
+	resp, _, _, err := ub.CreateAccount(context.Background(), info, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	action, ok := resp.(*v2.CreateAccountResponse_ActionRequiredResult)
+	if !ok {
+		t.Fatalf("expected ActionRequiredResult, got %T", resp)
+	}
+	if !strings.Contains(action.Message, "inv-pending") {
+		t.Errorf("message should contain pending invite ID, got: %s", action.Message)
+	}
+}
+
+func TestUserCreateAccount_InviteErrorDetails(t *testing.T) {
+	ub := newTestUserBuilder(t, createAccountHandler(t, `[]`, `[]`,
+		`{"data":{"organizationInviteCreate":null},"errors":[{"message":"Invite limit reached"}]}`,
+		func(map[string]interface{}) {}))
+
+	info := &v2.AccountInfo{Login: "new@example.com"}
+	_, _, _, err := ub.CreateAccount(context.Background(), info, nil)
+	if err == nil || !strings.Contains(err.Error(), "Invite limit reached") {
+		t.Fatalf("expected error to include Linear's message, got: %v", err)
 	}
 }
 

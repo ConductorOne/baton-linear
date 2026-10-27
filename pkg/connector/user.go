@@ -159,6 +159,10 @@ func (o *userResourceType) CreateAccountCapabilityDetails(_ context.Context) (*v
 // CreateAccount provisions a new Linear user by sending a workspace invite. The
 // user only becomes a Linear User after they accept the invite, so this returns
 // an ActionRequiredResult — there is no resource yet.
+//
+// Linear rejects invites for existing members and duplicate invites, so a user
+// who already exists is returned as AlreadyExists and a pending invite is
+// reported as still awaiting acceptance. This keeps retries idempotent.
 func (o *userResourceType) CreateAccount(
 	ctx context.Context,
 	accountInfo *v2.AccountInfo,
@@ -167,6 +171,36 @@ func (o *userResourceType) CreateAccount(
 	email := accountEmail(accountInfo)
 	if email == "" {
 		return nil, nil, nil, fmt.Errorf("baton-linear: email is required to create an invite")
+	}
+
+	existing, err := o.client.GetUserByEmail(ctx, email)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("baton-linear: failed to look up user by email: %w", err)
+	}
+	if existing != nil {
+		if !existing.Active {
+			return nil, nil, nil, fmt.Errorf("baton-linear: %s already has a suspended Linear account, which must be reactivated rather than invited", email)
+		}
+		ur, err := userResource(ctx, existing, &v2.ResourceId{ResourceType: resourceTypeOrg.Id, Resource: existing.Organization.ID})
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		return &v2.CreateAccountResponse_AlreadyExistsResult{
+			Resource:              ur,
+			IsCreateAccountResult: true,
+		}, nil, nil, nil
+	}
+
+	pending, err := o.client.GetPendingOrganizationInvite(ctx, email)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("baton-linear: failed to look up pending invites: %w", err)
+	}
+	if pending != nil {
+		return &v2.CreateAccountResponse_ActionRequiredResult{
+			Resource:              nil,
+			Message:               fmt.Sprintf("Invitation already pending for %s (invite ID: %s). The user must accept the invite to join the workspace.", email, pending.ID),
+			IsCreateAccountResult: true,
+		}, nil, nil, nil
 	}
 
 	role := accountRole(accountInfo)
