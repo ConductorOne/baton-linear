@@ -11,6 +11,8 @@ import (
 	"github.com/conductorone/baton-linear/pkg/linear"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	sdkResource "github.com/conductorone/baton-sdk/pkg/types/resource"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -267,6 +269,9 @@ func TestUserCreateAccount_SuspendedUser(t *testing.T) {
 	_, _, _, err := ub.CreateAccount(context.Background(), info, nil)
 	if err == nil || !strings.Contains(err.Error(), "suspended") {
 		t.Fatalf("expected suspended-account error, got: %v", err)
+	}
+	if status.Code(err) != codes.FailedPrecondition {
+		t.Errorf("expected FailedPrecondition, got %v", status.Code(err))
 	}
 }
 

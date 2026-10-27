@@ -12,6 +12,8 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 	"github.com/conductorone/baton-sdk/pkg/types/grant"
 	sdkResource "github.com/conductorone/baton-sdk/pkg/types/resource"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -179,7 +181,7 @@ func (o *userResourceType) CreateAccount(
 	}
 	if existing != nil {
 		if !existing.Active {
-			return nil, nil, nil, fmt.Errorf("baton-linear: %s already has a suspended Linear account, which must be reactivated rather than invited", email)
+			return nil, nil, nil, status.Errorf(codes.FailedPrecondition, "baton-linear: %s already has a suspended Linear account, which must be reactivated rather than invited", email)
 		}
 		ur, err := userResource(ctx, existing, &v2.ResourceId{ResourceType: resourceTypeOrg.Id, Resource: existing.Organization.ID})
 		if err != nil {

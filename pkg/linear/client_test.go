@@ -406,7 +406,10 @@ func TestGetPendingOrganizationInvite(t *testing.T) {
 		{
 			name: "accepted and expired invites are skipped",
 			pages: []string{
-				`{"data":{"organizationInvites":{"nodes":[{"id":"inv-1","email":"user@example.com","acceptedAt":"` + past + `"},{"id":"inv-2","email":"user@example.com","expiresAt":"` + past + `"}],"pageInfo":{"hasNextPage":false}}}}`,
+				`{"data":{"organizationInvites":{"nodes":[` +
+					`{"id":"inv-1","email":"user@example.com","acceptedAt":"` + past + `"},` +
+					`{"id":"inv-2","email":"user@example.com","expiresAt":"` + past + `"}` +
+					`],"pageInfo":{"hasNextPage":false}}}}`,
 			},
 		},
 		{
