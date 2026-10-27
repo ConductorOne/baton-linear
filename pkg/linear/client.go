@@ -607,11 +607,17 @@ func (c *Client) GetUserByEmail(ctx context.Context, email string) (*User, error
 		"variables": map[string]interface{}{"email": email},
 	}
 
-	var res GraphQLUsersResponse
+	var res struct {
+		GraphQLUsersResponse
+		GraphQLError
+	}
 	resp, _, err := c.doRequest(ctx, b, &res)
 	defer closeResponse(resp)
 	if err != nil {
 		return nil, err
+	}
+	if res.HasErrors() {
+		return nil, fmt.Errorf("users lookup failed: %s", res.Message())
 	}
 
 	if len(res.Data.Users.Nodes) == 0 {
@@ -651,6 +657,7 @@ func (c *Client) GetPendingOrganizationInvite(ctx context.Context, email string)
 		}
 
 		var res struct {
+			GraphQLError
 			Data struct {
 				OrganizationInvites struct {
 					Nodes    []OrganizationInvite `json:"nodes"`
@@ -662,6 +669,9 @@ func (c *Client) GetPendingOrganizationInvite(ctx context.Context, email string)
 		closeResponse(resp)
 		if err != nil {
 			return nil, err
+		}
+		if res.HasErrors() {
+			return nil, fmt.Errorf("organizationInvites lookup failed: %s", res.Message())
 		}
 
 		for _, invite := range res.Data.OrganizationInvites.Nodes {
@@ -680,7 +690,11 @@ func (c *Client) GetPendingOrganizationInvite(ctx context.Context, email string)
 		if !res.Data.OrganizationInvites.PageInfo.HasNextPage {
 			return nil, nil
 		}
-		after = res.Data.OrganizationInvites.PageInfo.EndCursor
+		next := res.Data.OrganizationInvites.PageInfo.EndCursor
+		if next == "" || next == after {
+			return nil, fmt.Errorf("organizationInvites pagination did not advance")
+		}
+		after = next
 	}
 }
 
@@ -1194,9 +1208,6 @@ func (c *Client) doRequest(ctx context.Context, body interface{}, res interface{
 		return resp, rlData, uhttp.WrapErrorsWithRateLimitInfo(codes.Unavailable, resp, err)
 	}
 
-	if gqlErr.HasErrors() {
-		err = fmt.Errorf("%w: %s", err, gqlErr.Message())
-	}
 	return resp, rlData, err
 }
 

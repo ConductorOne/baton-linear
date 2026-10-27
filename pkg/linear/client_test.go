@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -332,6 +333,7 @@ func TestGetUserByEmail(t *testing.T) {
 		name     string
 		response string
 		wantID   string
+		wantErr  bool
 	}{
 		{
 			name:     "found",
@@ -341,6 +343,11 @@ func TestGetUserByEmail(t *testing.T) {
 		{
 			name:     "not found",
 			response: `{"data":{"users":{"nodes":[]}}}`,
+		},
+		{
+			name:     "graphql error",
+			response: `{"data":null,"errors":[{"message":"Forbidden","extensions":{"code":"FORBIDDEN"}}]}`,
+			wantErr:  true,
 		},
 	}
 
@@ -356,6 +363,12 @@ func TestGetUserByEmail(t *testing.T) {
 			})
 
 			user, err := client.GetUserByEmail(context.Background(), "user@example.com")
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got user %+v", user)
+				}
+				return
+			}
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -367,6 +380,83 @@ func TestGetUserByEmail(t *testing.T) {
 			}
 			if user == nil || user.ID != tt.wantID {
 				t.Errorf("user: want ID %q got %+v", tt.wantID, user)
+			}
+		})
+	}
+}
+
+func TestGetPendingOrganizationInvite(t *testing.T) {
+	future := time.Now().Add(24 * time.Hour).Format(time.RFC3339)
+	past := time.Now().Add(-24 * time.Hour).Format(time.RFC3339)
+
+	tests := []struct {
+		name    string
+		pages   []string
+		wantID  string
+		wantErr bool
+	}{
+		{
+			name: "pending invite on second page",
+			pages: []string{
+				`{"data":{"organizationInvites":{"nodes":[{"id":"inv-1","email":"other@example.com","expiresAt":"` + future + `"}],"pageInfo":{"hasNextPage":true,"endCursor":"c1"}}}}`,
+				`{"data":{"organizationInvites":{"nodes":[{"id":"inv-2","email":"User@Example.com","expiresAt":"` + future + `"}],"pageInfo":{"hasNextPage":false}}}}`,
+			},
+			wantID: "inv-2",
+		},
+		{
+			name: "accepted and expired invites are skipped",
+			pages: []string{
+				`{"data":{"organizationInvites":{"nodes":[{"id":"inv-1","email":"user@example.com","acceptedAt":"` + past + `"},{"id":"inv-2","email":"user@example.com","expiresAt":"` + past + `"}],"pageInfo":{"hasNextPage":false}}}}`,
+			},
+		},
+		{
+			name: "graphql error",
+			pages: []string{
+				`{"data":null,"errors":[{"message":"Forbidden","extensions":{"code":"FORBIDDEN"}}]}`,
+			},
+			wantErr: true,
+		},
+		{
+			name: "cursor does not advance",
+			pages: []string{
+				`{"data":{"organizationInvites":{"nodes":[],"pageInfo":{"hasNextPage":true,"endCursor":""}}}}`,
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			calls := 0
+			client, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+				if calls >= len(tt.pages) {
+					t.Errorf("unexpected request %d", calls+1)
+					http.Error(w, "unexpected request", http.StatusInternalServerError)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(tt.pages[calls]))
+				calls++
+			})
+
+			invite, err := client.GetPendingOrganizationInvite(context.Background(), "user@example.com")
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got invite %+v", invite)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if tt.wantID == "" {
+				if invite != nil {
+					t.Errorf("expected nil invite, got %+v", invite)
+				}
+				return
+			}
+			if invite == nil || invite.ID != tt.wantID {
+				t.Errorf("invite: want ID %q got %+v", tt.wantID, invite)
 			}
 		})
 	}
