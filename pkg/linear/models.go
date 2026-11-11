@@ -95,8 +95,33 @@ type Project struct {
 type GraphQLError struct {
 	Error  string `json:"error"`
 	Errors []struct {
-		Message string `json:"message"`
+		Message    string `json:"message"`
+		Extensions struct {
+			Code string `json:"code"`
+		} `json:"extensions"`
 	} `json:"errors"`
+}
+
+// HasErrors reports whether the response carried any error details.
+func (e *GraphQLError) HasErrors() bool {
+	return e.Error != "" || len(e.Errors) > 0
+}
+
+// IsRateLimited reports whether Linear rejected the request for exceeding a rate limit.
+func (e *GraphQLError) IsRateLimited() bool {
+	for _, gqlErr := range e.Errors {
+		if gqlErr.Extensions.Code == "RATELIMITED" {
+			return true
+		}
+	}
+	return false
+}
+
+type OrganizationInvite struct {
+	ID         string `json:"id"`
+	Email      string `json:"email"`
+	AcceptedAt string `json:"acceptedAt"`
+	ExpiresAt  string `json:"expiresAt"`
 }
 
 func (e *GraphQLError) Message() string {
