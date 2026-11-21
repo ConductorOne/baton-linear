@@ -8,6 +8,10 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // decodeGraphQLRequest parses the GraphQL request body sent by the client and
@@ -267,6 +271,195 @@ func TestSuspendUser(t *testing.T) {
 			}
 			if ok != tt.wantSuccess {
 				t.Errorf("success: want %v got %v", tt.wantSuccess, ok)
+			}
+		})
+	}
+}
+
+func TestDoRequestBadRequest(t *testing.T) {
+	tests := []struct {
+		name          string
+		response      string
+		header        string
+		wantRateLimit bool
+		wantMessage   string
+	}{
+		{
+			name:          "rate limit error code is retryable",
+			response:      `{"errors":[{"message":"Rate limit exceeded","extensions":{"code":"RATELIMITED"}}]}`,
+			wantRateLimit: true,
+		},
+		{
+			name:          "exhausted rate limit header is retryable",
+			response:      `{"errors":[{"message":"Too many requests"}]}`,
+			header:        "X-RateLimit-Requests-Remaining",
+			wantRateLimit: true,
+		},
+		{
+			name:        "invalid request is not retryable and keeps the message",
+			response:    `{"errors":[{"message":"Argument Validation Error","extensions":{"code":"INVALID_INPUT"}}]}`,
+			wantMessage: "Argument Validation Error",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if tt.header != "" {
+					w.Header().Set(tt.header, "0")
+				}
+				w.WriteHeader(http.StatusBadRequest)
+				_, _ = w.Write([]byte(tt.response))
+			})
+
+			_, err := client.CreateOrganizationInvite(context.Background(), "user@example.com", "", nil)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			isRateLimit := status.Code(err) == codes.Unavailable
+			if isRateLimit != tt.wantRateLimit {
+				t.Errorf("rate limited: want %v got %v (err: %v)", tt.wantRateLimit, isRateLimit, err)
+			}
+			if tt.wantMessage != "" && !strings.Contains(err.Error(), tt.wantMessage) {
+				t.Errorf("error should contain %q, got: %v", tt.wantMessage, err)
+			}
+		})
+	}
+}
+
+func TestGetUserByEmail(t *testing.T) {
+	tests := []struct {
+		name     string
+		response string
+		wantID   string
+		wantErr  bool
+	}{
+		{
+			name:     "found",
+			response: `{"data":{"users":{"nodes":[{"id":"user-1","email":"user@example.com","active":true,"organization":{"id":"org-1"}}]}}}`,
+			wantID:   "user-1",
+		},
+		{
+			name:     "not found",
+			response: `{"data":{"users":{"nodes":[]}}}`,
+		},
+		{
+			name:     "graphql error",
+			response: `{"data":null,"errors":[{"message":"Forbidden","extensions":{"code":"FORBIDDEN"}}]}`,
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+				vars := decodeGraphQLRequest(t, r.Body)
+				if vars["email"] != "user@example.com" {
+					t.Errorf("email: got %v", vars["email"])
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(tt.response))
+			})
+
+			user, err := client.GetUserByEmail(context.Background(), "user@example.com")
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got user %+v", user)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if tt.wantID == "" {
+				if user != nil {
+					t.Errorf("expected nil user, got %+v", user)
+				}
+				return
+			}
+			if user == nil || user.ID != tt.wantID {
+				t.Errorf("user: want ID %q got %+v", tt.wantID, user)
+			}
+		})
+	}
+}
+
+func TestGetPendingOrganizationInvite(t *testing.T) {
+	future := time.Now().Add(24 * time.Hour).Format(time.RFC3339)
+	past := time.Now().Add(-24 * time.Hour).Format(time.RFC3339)
+
+	tests := []struct {
+		name    string
+		pages   []string
+		wantID  string
+		wantErr bool
+	}{
+		{
+			name: "pending invite on second page",
+			pages: []string{
+				`{"data":{"organizationInvites":{"nodes":[{"id":"inv-1","email":"other@example.com","expiresAt":"` + future + `"}],"pageInfo":{"hasNextPage":true,"endCursor":"c1"}}}}`,
+				`{"data":{"organizationInvites":{"nodes":[{"id":"inv-2","email":"User@Example.com","expiresAt":"` + future + `"}],"pageInfo":{"hasNextPage":false}}}}`,
+			},
+			wantID: "inv-2",
+		},
+		{
+			name: "accepted and expired invites are skipped",
+			pages: []string{
+				`{"data":{"organizationInvites":{"nodes":[` +
+					`{"id":"inv-1","email":"user@example.com","acceptedAt":"` + past + `"},` +
+					`{"id":"inv-2","email":"user@example.com","expiresAt":"` + past + `"}` +
+					`],"pageInfo":{"hasNextPage":false}}}}`,
+			},
+		},
+		{
+			name: "graphql error",
+			pages: []string{
+				`{"data":null,"errors":[{"message":"Forbidden","extensions":{"code":"FORBIDDEN"}}]}`,
+			},
+			wantErr: true,
+		},
+		{
+			name: "cursor does not advance",
+			pages: []string{
+				`{"data":{"organizationInvites":{"nodes":[],"pageInfo":{"hasNextPage":true,"endCursor":""}}}}`,
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			calls := 0
+			client, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+				if calls >= len(tt.pages) {
+					t.Errorf("unexpected request %d", calls+1)
+					http.Error(w, "unexpected request", http.StatusInternalServerError)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(tt.pages[calls]))
+				calls++
+			})
+
+			invite, err := client.GetPendingOrganizationInvite(context.Background(), "user@example.com")
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got invite %+v", invite)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if tt.wantID == "" {
+				if invite != nil {
+					t.Errorf("expected nil invite, got %+v", invite)
+				}
+				return
+			}
+			if invite == nil || invite.ID != tt.wantID {
+				t.Errorf("invite: want ID %q got %+v", tt.wantID, invite)
 			}
 		})
 	}
