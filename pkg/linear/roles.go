@@ -75,7 +75,7 @@ func (c *Client) ChangeUserRole(ctx context.Context, userID, role string) (*v2.R
 		return rlData, err
 	}
 	if !data.UserChangeRole.Success {
-		return rlData, fmt.Errorf("baton-linear: userChangeRole returned success=false")
+		return rlData, status.Error(codes.Internal, "baton-linear: userChangeRole returned success=false")
 	}
 	return rlData, nil
 }
@@ -129,16 +129,16 @@ func (c *Client) doRoleRequest(ctx context.Context, query string, variables map[
 		}
 	}
 	if len(response.Errors) > 0 {
-		return rlData, fmt.Errorf("baton-linear: role request failed: %s", response.Errors[0].Message)
+		return rlData, status.Errorf(codes.Unknown, "baton-linear: role request failed: %s", response.Errors[0].Message)
 	}
 	if requestErr != nil {
 		return rlData, requestErr
 	}
 	if len(response.Data) == 0 || string(response.Data) == "null" {
-		return rlData, fmt.Errorf("baton-linear: role request returned no data")
+		return rlData, status.Error(codes.Internal, "baton-linear: role request returned no data")
 	}
 	if err := json.Unmarshal(response.Data, data); err != nil {
-		return rlData, fmt.Errorf("baton-linear: decoding role response: %w", err)
+		return rlData, uhttp.WrapErrors(codes.Internal, "baton-linear: decoding role response", err)
 	}
 	return rlData, nil
 }

@@ -52,10 +52,10 @@ func TestRoleProvisioning(t *testing.T) {
 		{name: "HTTP forbidden", role: roleAdmin, httpStatus: http.StatusForbidden, wantCode: codes.PermissionDenied},
 		{name: "HTTP unauthorized", role: roleAdmin, httpStatus: http.StatusUnauthorized, wantCode: codes.Unauthenticated},
 		{name: "false success", role: roleAdmin, current: roleUser, mutationError: true, wantMutation: true,
-			response: `{"data":{"userChangeRole":{"success":false}}}`, wantCode: codes.Unknown},
+			response: `{"data":{"userChangeRole":{"success":false}}}`, wantCode: codes.Internal},
 		{name: "partial mutation error", role: roleAdmin, current: roleUser, mutationError: true, wantMutation: true,
 			response: `{"data":{"userChangeRole":{"success":true}},"errors":[{"message":"failed"}]}`, wantCode: codes.Unknown},
-		{name: "no data", role: roleAdmin, response: `{}`, wantCode: codes.Unknown},
+		{name: "no data", role: roleAdmin, response: `{}`, wantCode: codes.Internal},
 		{name: "malformed JSON", role: roleAdmin, response: `{`, wantCode: codes.Unknown},
 		{name: "bad request is not rate limit", role: roleAdmin, httpStatus: http.StatusBadRequest,
 			response: `{"errors":[{"message":"invalid query"}]}`, wantCode: codes.Unknown},
@@ -130,6 +130,12 @@ func TestRoleProvisioning(t *testing.T) {
 			}
 			if status.Code(err) != tt.wantCode {
 				t.Fatalf("code: got %v, want %v: %v", status.Code(err), tt.wantCode, err)
+			}
+			switch tt.name {
+			case "lookup failure", "false success", "partial mutation error", "no data":
+				if _, ok := status.FromError(err); !ok {
+					t.Errorf("expected an explicit gRPC status: %v", err)
+				}
 			}
 			if tt.wantCode == codes.PermissionDenied && !strings.Contains(err.Error(), "admin permissions") {
 				t.Errorf("permission error lacks actionable context: %v", err)
