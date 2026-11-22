@@ -142,9 +142,6 @@ func (o *roleResourceType) Revoke(ctx context.Context, grant *v2.Grant) (annotat
 	if err != nil {
 		return nil, err
 	}
-	if role == roleUser {
-		return nil, status.Error(codes.Unimplemented, "baton-linear: the baseline user role cannot be revoked; Linear requires a workspace role")
-	}
 	currentRole, rlData, err := o.client.GetUserRole(ctx, userID)
 	annos := annotations.New()
 	if rlData != nil {
@@ -159,6 +156,9 @@ func (o *roleResourceType) Revoke(ctx context.Context, grant *v2.Grant) (annotat
 	if currentRole != role {
 		annos.Append(&v2.GrantAlreadyRevoked{})
 		return annos, nil
+	}
+	if role == roleUser {
+		return annos, status.Error(codes.Unimplemented, "baton-linear: the baseline user role cannot be revoked; Linear requires a workspace role")
 	}
 	rlData, err = o.client.ChangeUserRole(ctx, userID, roleUser)
 	if rlData != nil {
