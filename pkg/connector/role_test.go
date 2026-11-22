@@ -58,11 +58,15 @@ func TestRoleProvisioning(t *testing.T) {
 		{name: "no data", role: roleAdmin, response: `{}`, wantCode: codes.Internal},
 		{name: "malformed JSON", role: roleAdmin, response: `{`, wantCode: codes.Unknown},
 		{name: "bad request is not rate limit", role: roleAdmin, httpStatus: http.StatusBadRequest,
-			response: `{"errors":[{"message":"invalid query"}]}`, wantCode: codes.Unknown},
+			response: `{"errors":[{"message":"invalid query"}]}`, wantCode: codes.InvalidArgument},
 		{name: "rate limit lookup", role: roleAdmin, httpStatus: http.StatusBadRequest,
 			response: `{"errors":[{"message":"slow down","extensions":{"code":"RATELIMITED"}}]}`, wantCode: codes.Unavailable},
 		{name: "rate limit mutation", role: roleAdmin, current: roleUser, mutationError: true, wantMutation: true, httpStatus: http.StatusTooManyRequests,
 			response: `{"errors":[{"message":"slow down","extensions":{"code":"RATELIMITED"}}]}`, wantCode: codes.Unavailable},
+		{name: "server error remains retryable", role: roleAdmin, httpStatus: http.StatusServiceUnavailable,
+			response: `{"errors":[{"message":"temporarily unavailable"}]}`, wantCode: codes.Unavailable},
+		{name: "empty server error remains retryable", role: roleAdmin, httpStatus: http.StatusInternalServerError,
+			response: `{}`, wantCode: codes.Unavailable},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -143,7 +147,7 @@ func TestRoleProvisioning(t *testing.T) {
 			if (mutations == 1) != tt.wantMutation || mutations > 1 {
 				t.Errorf("mutations: got %d, expected mutation %v", mutations, tt.wantMutation)
 			}
-			if tt.wantCode == codes.InvalidArgument || tt.current == "" && tt.wantCode == codes.Unimplemented {
+			if tt.role == "invalid" || tt.role == "app" {
 				if requests != 0 {
 					t.Errorf("invalid operation made %d requests", requests)
 				}
@@ -153,7 +157,7 @@ func TestRoleProvisioning(t *testing.T) {
 					t.Error("missing idempotency annotation")
 				}
 			}
-			if tt.wantCode == codes.Unavailable {
+			if tt.wantCode == codes.Unavailable && tt.httpStatus < http.StatusInternalServerError {
 				var rl v2.RateLimitDescription
 				ok, pickErr := annos.Pick(&rl)
 				if pickErr != nil || !ok || rl.Status != v2.RateLimitDescription_STATUS_OVERLIMIT {

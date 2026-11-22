@@ -128,11 +128,11 @@ func (c *Client) doRoleRequest(ctx context.Context, query string, variables map[
 			return rlData, rolePermissionError(gqlErr.Message)
 		}
 	}
-	if len(response.Errors) > 0 {
-		return rlData, status.Errorf(codes.Unknown, "baton-linear: role request failed: %s", response.Errors[0].Message)
-	}
 	if requestErr != nil {
 		return rlData, requestErr
+	}
+	if len(response.Errors) > 0 {
+		return rlData, status.Errorf(codes.Unknown, "baton-linear: role request failed: %s", response.Errors[0].Message)
 	}
 	if len(response.Data) == 0 || string(response.Data) == "null" {
 		return rlData, status.Error(codes.Internal, "baton-linear: role request returned no data")
