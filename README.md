@@ -9,6 +9,21 @@ Check out [Baton](https://github.com/conductorone/baton) to learn more the proje
 Linear API key. 
 The API key can be created in Settings -> Account -> API -> Personal API keys. 
 
+Workspace role provisioning uses Linear's `userChangeRole` GraphQL mutation.
+Use an API key with **Admin** permission, owned by a workspace admin (or owner).
+The caller's role must be at least as high as the requested role; granting `owner`
+requires an owner's key.
+
+Roles (`guest`, `user`, `admin`, `owner`) are mutually exclusive: granting a role
+replaces the current role. Revoking a matching `guest`, `admin`, or `owner` role
+sets the role to `user`; **revoking `guest` therefore increases workspace access**.
+The baseline `user` role cannot be revoked. The `app` role and app accounts are
+not supported for role provisioning. Already-held grants and already-absent
+revocations succeed without a mutation. Role changes do not suspend accounts.
+
+See the [Linear schema](https://github.com/linear/linear/blob/master/packages/sdk/src/schema.graphql)
+for `userChangeRole` and its permissions.
+
 ## brew
 
 ```

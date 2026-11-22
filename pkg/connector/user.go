@@ -83,6 +83,7 @@ func userResource(ctx context.Context, user *linear.User, parentResourceID *v2.R
 		sdkResource.WithResourceProfile(profile),
 		sdkResource.WithResourceStatus(status, ""),
 		sdkResource.WithParentResourceID(parentResourceID),
+		sdkResource.WithExternalID(&v2.ExternalId{Id: user.ID}),
 	)
 	if err != nil {
 		return nil, err
